@@ -1,0 +1,13 @@
+function [time,Xhat,Phat] = hybrid_EKF_offline(f,Df,h,Dh,x0,P0,time,Y,Qtil,Rtil)
+n = size(x0,1);
+m = size(Y,1);
+N = length(time);
+Xhat = zeros(n,N)
+Xhat(:,1) = x0;
+Phat = zeros(n,n,N);
+Phat(:,:,1) = P0;
+for i = 1:N
+    [Xhat(:,i+1),Phat(:,:,i+1)] = hybrid_EKF_update(f,Df,h,Dh,Xhat(:,i),Phat(:,:,i),Qtil,Rtil,Y(:,i))
+end
+
+%%

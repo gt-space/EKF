@@ -6,7 +6,7 @@ true_state = true_state';
 N = size(true_state,2);
 measurements = zeros(m,N);
 for i = 1:N
-    measurements(:,i) = h(true_state(:),i) + R*randn(m,1);
+    measurements(:,i) = h(true_state(1:4,i)) + R*randn(m,1);
 end
 
 end
