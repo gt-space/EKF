@@ -1,4 +1,4 @@
-function [xhat_plus, Phat_plus] = hybrid_RIEKF_update(f, Df, h, Dh, xhat, Phat, tspan, y, Qtil, Rtil)
+function [xhat_plus, Phat_plus] = hybrid_RIEKF_update(f, Df, h, Dh, xhat, Phat, tspan, y, Qtil, Rtil,F_mat)
 % hybrid_RIEKF_update implements a right-invariant EKF update.
 %
 % The state vector is partitioned as:
@@ -37,12 +37,7 @@ function [xhat_plus, Phat_plus] = hybrid_RIEKF_update(f, Df, h, Dh, xhat, Phat, 
     xhat_minus = X(end,:)';  % predicted (nominal) state
     q_minus = xhat_minus(1:4);
     xhat_minus(1:4) = q_minus / norm(q_minus);  % ensure quaternion is normalized
-
-    %% --- Build the Transformation Matrix F_mat ---
-    % For a right-invariant EKF the minimal attitude error (delta_theta, 3x1) is
-    % mapped to an additive quaternion error by:
-    %    delta_q ≈ [1; 0.5*delta_theta]
-
+    
     %% --- Covariance Propagation (Minimal State) ---
     % Get the full state Jacobian at the previous estimate (or you could use xhat_minus)
     A = Df(xhat);  % A is n_full x n_full

@@ -14,18 +14,18 @@ q0 = [0;0;0;1];
 omegaB0 = [0;0;0];
 x0 = [q0;omegaB0];
 n = size(x0,1);
-P0 = 0.01*eye(n-1); % min error state dim
-Q = 0.01*eye(n-1); % min error state dim
-L = eye(n-1);
+P0 = 0.01*eye(n); % min error state dim
+Q = 0.01*eye(n); % min error state dim
+L = eye(n);
 Qtil = L*Q*L';
-R = 1*eye(3);
+R = 5*eye(3);
 M = eye(3);
 Rtil = M*R*M';
 [time,true_state,measurements] = simulate(f,x0,tspan,h,R);
 get_Qtil = @(x) Qtil;
 get_Rtil = @(x) Rtil;
 
-[Xhat,Phat] = hybrid_RIEKF_offline(f,Df,h,Dh,x0,P0,time,measurements,get_Qtil,get_Rtil);
+[Xhat,Phat] = hybrid_EKF_offline(f,Df,h,Dh,x0,P0,time,measurements,get_Qtil,get_Rtil);
 
 % t= 0;
 % syms q [4 1] real
