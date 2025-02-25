@@ -1,0 +1,121 @@
+clear;
+dt = 0.1;
+t0 = 0;
+tf = 100;
+tspan = t0:dt:tf;
+N = length(tspan);
+TB = [0;0;-2*9.8];
+magI = [20;5;35];
+get_inert_mag_vec = @(x) magI;
+omegaB = [0;0;0.001];
+uB = @(t) t*[omegaB;TB];
+
+alpha_m = 1e-4;
+hq = @(x) quaternion2DCM(x(1:4))'*magI ; % magnetometer measures magB
+h = @(rs) rs(4:6); % rs is the remaining state, measures velocity
+f = @(t,x) qrvm_dynamics(t,x,uB,alpha_m);
+Dh = @(rs) h_jacobian(rs);
+Df = @(x,TB) f_jacobian(x,TB);
+q0 = [1;0;0;0];
+r0 = [0;0;0];
+v0 = [0;0;0];
+m = 20; % kg 
+x0 = [q0;r0;v0;m];
+n = size(x0,1);
+nr = n - 4;
+Pq0 = 0.01*eye(6); % min error state dim
+Pr0 = 0.01*eye(nr+6);
+bg0 = [0;0;0];
+ba0 = [0;0;0];
+Sa0 = [0;0;0];
+IMU0 = [bg0;ba0;Sa0];
+
+R = 1*eye(3);
+%%
+% bg = zeros(3,N);
+% bg(:,1) = bg0;
+% for i = 1:N-1
+%     bg(:,i+1) = bg(:,i) + 0.001*randn(3,1);
+% end
+% IMU = bg;
+[time,true_state,measurements] = simulate2(f,x0,tspan,hq,R);
+%%
+U = [omegaB*(1:N);repmat(TB,1,N)];
+Q = blkdiag(0.05*eye(4),0.1*eye(6),1e-6);
+xhat0 = x0+Q*randn(size(x0));
+xhat0(1:4) = xhat0(1:4)/norm(xhat0(1:4));
+xhat0 = x0;
+[Xhat,IMU,Pq,Pr] = hybrid_RIEKF_offline(f,Df,h,Dh,xhat0,IMU0,Pq0,Pr0,time,U,...
+                                measurements,@get_Q,@get_R,get_inert_mag_vec);
+att_error = zeros(length(time),1);
+omega_error = zeros(length(time),1);
+for k = 1:length(time)
+    q_true = true_state(1:4,k);
+    q_hat = Xhat(1:4,k);
+    q_err = qmult(qconj(q_hat), q_true); % right-invariant error quaternion
+    q_err = q_err / norm(q_err);
+    att_error(k) = 2*acos(min(1,abs(q_err(1))));  % error angle in radians
+end
+% Plot attitude (quaternion) error
+figure;
+plot(time, att_error, 'LineWidth', 2);
+xlabel('Time (s)');
+ylabel('Attitude Error (rad)');
+title('EKF: Attitude Error');
+grid on;
+
+%%
+function Df = f_jacobian(x,TB)
+% Jacobian of dynamics of remaining states plus IMU (r,v,m,ba,Sa)
+m = x(7);
+TB1 = TB(1);
+TB2 = TB(2);
+TB3 = TB(3);
+Df = [ 0, 0, 0, 1, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 1, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 1,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,  -TB1/m^2,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,  -TB2/m^2,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,  -TB3/m^2,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0;
+       0, 0, 0, 0, 0, 0,         0,     0, 0, 0, 0, 0, 0];
+
+end
+function Dh = h_jacobian(rs)
+% function of remaining state
+nr = length(rs);
+% Dh = [zeros(3,3) eye(3) zeros(3, nr-6)];
+Dh  = zeros(3,nr+6);
+end
+function xdot = qrvm_dynamics(t,x,uB,alpha_m)
+q = x(1:4);
+uB = uB(t);
+omegaB = uB(1:3);
+qdot = 1/2 * qmult(q,[0;omegaB]);
+rdot = x(8:10);
+% gI = compute_g(x(5:7)); % NED
+gI = [0;0;9.81]; % NED
+gB = sandwich(qconj(q),[0;gI]);
+TB = uB(4:6);
+% vdot = gB(2:4) + TB/m;
+vdot = zeros(3,1); % TODO
+mdot = -alpha_m*norm(TB);
+xdot = [qdot;rdot;vdot;mdot];
+end
+
+function [Qq,Qr] = get_Q(x)
+n = length(x);
+nr = n-4;
+Qq = [0.01*eye(3) zeros(3,3);
+      zeros(3,3) 1e-6*eye(3)]; % min error state dim
+Qr = 0.01*eye(nr+6);
+end
+function [Rq,Rr] = get_R(x)
+Rq = 1*eye(3); % min error state dim
+Rr = 0.01*eye(3);
+end

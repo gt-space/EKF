@@ -1,125 +1,88 @@
-function [xhat_plus, Phat_plus] = hybrid_RIEKF_update(f, Df, h, Dh, xhat, Phat, tspan, y, Qtil, Rtil,F_mat)
-% hybrid_RIEKF_update implements a right-invariant EKF update.
-%
-% The state vector is partitioned as:
-%    xhat = [q; r]
-% where q is a 4x1 quaternion (attitude) and r contains the remaining states.
-%
-% The filter is based on a minimal error state:
-%    delta_x = [delta_theta; delta_r]
-% where delta_theta (3x1) is the minimal attitude error and delta_r is the error 
-% for the remaining states. Thus, the minimal state dimension is n_min = (n_full - 1).
-%
-% Inputs:
-%   f      - dynamics function handle:  f(t,x)
-%   Df     - Jacobian of f (w.r.t. full state)
-%   h      - measurement function handle:  h(x)
-%   Dh     - Jacobian of h (w.r.t. full state)
-%   xhat   - previous state estimate (n_full x 1), with xhat(1:4)=quaternion
-%   Phat   - previous covariance estimate for the minimal state ((n_full-1) x (n_full-1))
-%   tspan  - time span for propagation [t0 tf]
-%   y      - current measurement vector
-%   Qtil   - discretized process noise covariance (minimal state, (n_full-1)x(n_full-1))
-%   Rtil   - discretized sensor noise covariance
-%
-% Outputs:
-%   xhat_plus  - updated full state estimate (with quaternion updated multiplicatively)
-%   Phat_plus  - updated minimal state covariance ((n_full-1)x(n_full-1))
-
-    % Dimensions: full state dimension and minimal state dimension
-    n_full = length(xhat);     
-    n_min  = n_full - 1;         % minimal dimension: 3 for attitude + (n_full-4)
-    I_min = eye(n_min);
+function [x_plus, IMU_plus, Pq_plus, Pr_plus] = hybrid_RIEKF_update(f, Df,...
+    h, Dh, x, IMU, Pq, Pr, tspan, u, y, get_Q, get_R,get_inert_mag_vec)
+    q2v = @(q) q(2:4);
+    n = length(x);     
+    Iq = eye(6); % error state dimension: 3 for attitude + 3 for gyro bias
+    nr = n - 4;
+    Ir = eye(nr+6); % including acceleration bias and scaling factor
 
     %% --- Nominal State Propagation ---
     % Propagate the full state using the dynamics f (e.g., with ode45)
-    [~, X] = ode45(@(t,x) f(t,x), tspan, xhat);
-    xhat_minus = X(end,:)';  % predicted (nominal) state
-    q_minus = xhat_minus(1:4);
-    xhat_minus(1:4) = q_minus / norm(q_minus);  % ensure quaternion is normalized
-    
+    [~, X] = ode45(@(t,x) f(t,x), tspan, x);
+    x_minus = X(end,:)';  % predicted (nominal) state
+    q_minus = x_minus(1:4);
+    q_minus = q_minus / norm(q_minus);  % ensure quaternion is normalized
+    r_minus = x_minus(5:end);
+    bg_minus = IMU(1:3); % assume zero derivative
+    ba_minus = IMU(4:6); % assume zero derivative
+    Sa_minus = IMU(7:9); % assume zero derivative
+
     %% --- Covariance Propagation (Minimal State) ---
     % Get the full state Jacobian at the previous estimate (or you could use xhat_minus)
-    A = Df(xhat);  % A is n_full x n_full
-    phat = Phat(:);
+    q = x(1:4);
+    omegaB = u(1:3);
+    CB2I = quaternion2DCM(q);
+    I_omega = CB2I*(omegaB - bg_minus);
+    F = [zeros(3,3) -eye(3);
+         zeros(3,3) skew(I_omega)];
+    G = [CB2I zeros(3,3);
+         zeros(3,3) -CB2I];
+    A = Df(r_minus,u(4:end));  % A is Jacobian of R^n part of dynamics
+    pq = Pq(:);
+    pr = Pr(:);
     % Integrate the Riccati equation using the minimal dynamics.
-    [~, P_sol] = ode45(@(t,P) RiccatiHybrid(t, P, A, F_mat, Qtil), tspan, phat);
-    P_minus = reshape(P_sol(end,:), size(Qtil));
+    [Qq, Qr] = get_Q(x);
+    Qqtil = G*Qq*G';
+    Qrtil = Qr;
+    [~, Pq_sol] = ode45(@(t,P) RiccatiHybrid(t, Pq, F, Qqtil), tspan, pq);
+    [~, Pr_sol] = ode45(@(t,P) RiccatiHybrid(t, Pr, A, Qrtil), tspan, pr);
+    Pq_minus = reshape(Pq_sol(end,:), size(Qq));
+    Pr_minus = reshape(Pr_sol(end,:), size(Qr));
 
     %% --- Measurement Update ---
-    % Compute the full measurement Jacobian
-    H_full = Dh(xhat_minus);
-    % Transform it into the minimal error space
-    H = H_full * F_mat;  % H now has size (m x (n_full-1))
-    
+    vI = get_inert_mag_vec(x_minus);
+    Hq = [skew(vI) zeros(3,3)];
+    Hr = Dh(r_minus);
+    [Rqtil, Rrtil] = get_R(x_minus);
     % Compute Kalman gain in the minimal state space.
-    K = P_minus * H' / (H * P_minus * H' + Rtil);
+    Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rqtil);
+    Kr = Pr_minus * Hr' / (Hr * Pr_minus * Hr' + Rrtil);
     
     % Compute the innovation (measurement residual)
-    dy = y - h(xhat_minus);
+    vB = y(1:3);
+    yr = y(4:end);
+    dv = vI - q2v(sandwich(q_minus,[0;vB]));
+    dyr = yr - h(r_minus);
     
-    % Minimal state update (delta_x has dimension (n_full-1)x1)
-    delta_x = K * dy;
-    delta_theta = delta_x(1:3);  % minimal attitude error (3x1)
-    delta_r     = delta_x(4:end); % additive update for the remaining states
-
+    err = Kq*dv;
+    cq = err(1:3);
+    cbg = err(4:6);
+    dr = Kr * dyr;
     % Covariance update for the minimal error state.
-    Phat_plus = (I_min - K * H) * P_minus;
+    Pq_plus = (Iq - Kq * Hq) * Pq_minus * (Iq - Kq * Hq)' + Kq * Rqtil * Kq';
+    Pr_plus = (Ir - Kr * Hr) * Pr_minus * (Ir - Kr * Hr)' + Kr * Rrtil * Kr';
 
-    %% --- Correction Step (Right-Invariant Quaternion Update) ---
-    % Compute the correction quaternion from the minimal attitude error using
-    % the small-angle approximation.
-    delta_q = [1; 0.5 * delta_theta];
-    delta_q = delta_q / norm(delta_q);  % enforce unit norm
-
-    % Right-invariant update: update the nominal quaternion via right multiplication.
-    % q_plus = q_minus ⊗ delta_q
-    q_plus = qmult(xhat_minus(1:4), delta_q);
-    q_plus = q_plus / norm(q_plus);  % re-normalize
-
+    %% --- Correction Step (Quaternion Update using the Exponential Map) ---
+    % Compute the correction quaternion from the minimal attitude error using the exponential map.
+    dq = quaternion_exp(-cq/2);
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = qmult(dq,q_minus);
+    % q_plus = q_plus / norm(q_plus);  % re-normalize
+    bg_plus = bg_minus - q2v(sandwich(qconj(q_plus),[0;cbg]));
     % Update the remaining states additively.
-    r_minus = xhat_minus(5:end);
-    r_plus = r_minus + delta_r;
-    
+    r_plus = r_minus + dr(1:end-6);
+    ba_plus = ba_minus + dr(end-5:end-3);
+    Sa_plus = Sa_minus + dr(end-2:end);
     % Compose the full updated state.
-    xhat_plus = [q_plus; r_plus];
+    x_plus = [q_plus; r_plus];
+    IMU_plus = [bg_plus;ba_plus;Sa_plus];
 end
 
 %% --- Helper Functions ---
 
-function dPdt = RiccatiHybrid(t, P, A, F_mat, Qtil)
+function dPdt = RiccatiHybrid(t, P, A, Qtil)
     % Integrates the differential Riccati equation for the minimal error covariance.
-    % A is the full state Jacobian (n_full x n_full) and F_mat maps the minimal error state
-    % to the full state. We first compute the minimal dynamics matrix A_min.
-    
-    % Compute the left inverse of F_mat: F_inv = (F_mat' * F_mat)^{-1} * F_mat'
-    F_inv = (F_mat' * F_mat) \ F_mat';
-    A_min = F_inv * A * F_mat;  % minimal dynamics (n_min x n_min)
-    
-    % Reshape P to minimal dimensions (n_min x n_min)
-    P = reshape(P, size(Qtil));
-    
-    % Riccati equation in the minimal error space.
-    dPdt = A_min * P + P * A_min' + Qtil;
+    P = reshape(P,size(Qtil));
+    dPdt = A * P + P * A' + Qtil;
     dPdt = dPdt(:);
-end
-
-function S = skew(v)
-    % Returns the 3x3 skew-symmetric matrix of a 3x1 vector.
-    S = [   0, -v(3),  v(2);
-          v(3),    0, -v(1);
-         -v(2),  v(1),   0];
-end
-
-function q_out = qmult(q1, q2)
-    % qmult multiplies two quaternions.
-    % q1 and q2 are assumed to be 4x1 vectors in [q0; q1; q2; q3] form,
-    % where q0 is the scalar part.
-    s1 = q1(1); v1 = q1(2:4);
-    s2 = q2(1); v2 = q2(2:4);
-    
-    s_out = s1 * s2 - dot(v1, v2);
-    v_out = s1 * v2 + s2 * v1 + cross(v1, v2);
-    
-    q_out = [s_out; v_out];
 end
