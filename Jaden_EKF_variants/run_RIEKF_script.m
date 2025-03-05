@@ -7,7 +7,7 @@ N = length(tspan);
 TB = [0;0;-2*9.8];
 magI = [20;5;35];
 get_inert_mag_vec = @(x) magI;
-omegaB = [0;0;0.001];
+omegaB = [-1e-4;-1e-4;0.001];
 uB = @(t) t*[omegaB;TB];
 
 alpha_m = 1e-4;
@@ -41,7 +41,7 @@ R = 1*eye(3);
 [time,true_state,measurements] = simulate2(f,x0,tspan,hq,R);
 %%
 U = [omegaB*(1:N);repmat(TB,1,N)];
-Q = blkdiag(0.05*eye(4),0.1*eye(6),1e-6);
+Q = blkdiag(0.1*eye(4),0.1*eye(6),1e-6);
 xhat0 = x0+Q*randn(size(x0));
 xhat0(1:4) = xhat0(1:4)/norm(xhat0(1:4));
 xhat0 = x0;
@@ -61,7 +61,7 @@ figure;
 plot(time, att_error, 'LineWidth', 2);
 xlabel('Time (s)');
 ylabel('Attitude Error (rad)');
-title('EKF: Attitude Error');
+title('RIEKF: Attitude Error');
 grid on;
 
 %%

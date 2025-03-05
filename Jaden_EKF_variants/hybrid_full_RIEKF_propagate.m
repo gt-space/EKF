@@ -1,0 +1,37 @@
+function [x_minus, IMU_minus, Pq_minus, Pr_minus] = hybrid_full_RIEKF_propagate(f, Df,...
+    x, IMU, Pq, Pr, tspan, u, get_Q)
+    %% --- Nominal State Propagation ---
+    % Propagate the full state using the dynamics f (e.g., with ode45)
+    [~, X] = ode45(@(t,x) f(t,x,u,IMU), tspan, x); % zero-order hold
+    x_minus = X(end,:)';  % predicted (nominal) state
+    q_minus = x_minus(1:4);
+    x_minus(1:4) = q_minus / norm(q_minus);  % ensure quaternion is normalized
+    r_minus = x_minus(5:end);
+    bg_minus = IMU(1:3); % assume zero derivative
+    ba_minus = IMU(4:6); % assume zero derivative
+    Sa_minus = IMU(7:9); % assume zero derivative
+    IMU_minus = [bg_minus;ba_minus;Sa_minus];
+    %% --- Covariance Propagation (Minimal State) ---
+    % Get the full state Jacobian at the previous estimate (or you could use xhat_minus)
+    q = x(1:4);
+    omegaB = u(1:3);
+    aB = u(4:6);
+    CB2I = quaternion2DCM(q);
+    I_omega = CB2I*(omegaB - bg_minus);
+    F = [zeros(3,3) -eye(3);
+         zeros(3,3) skew(I_omega)];
+    G = [CB2I zeros(3,3);
+         zeros(3,3) -CB2I];
+    A = Df([r_minus;IMU(4:end)],u);  % A is Jacobian of R^n part of dynamics
+    % L = % TODO G matrix
+    pq = Pq(:);
+    pr = Pr(:);
+    % Integrate the Riccati equation using the minimal dynamics.
+    [Qq, Qr] = get_Q(x);
+    Qqtil = G*Qq*G';
+    Qrtil = Qr;
+    [~, Pq_sol] = ode45(@(t,P) RiccatiHybrid(t, Pq, F, Qqtil), tspan, pq);
+    [~, Pr_sol] = ode45(@(t,P) RiccatiHybrid(t, Pr, A, Qrtil), tspan, pr);
+    Pq_minus = reshape(Pq_sol(end,:), size(Qq));
+    Pr_minus = reshape(Pr_sol(end,:), size(Qr));
+end

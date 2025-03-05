@@ -1,0 +1,57 @@
+function [x_plus, IMU_plus, Pq_plus, Pr_plus] = hybrid_full_RIEKF_update(...
+    h, Dh, x_minus, IMU_minus, Pq_minus, Pr_minus, y, get_R,get_inert_mag_vec)
+    
+    n = length(x_minus);     
+    Iq = eye(6); % error state dimension: 3 for attitude + 3 for gyro bias
+    nr = n - 4;
+    Ir = eye(nr+6); % including acceleration bias and scaling factor
+
+    %% --- Measurement Update ---
+    magI = get_inert_mag_vec(x_minus);
+    Hq = [skew(magI) zeros(3,3)];
+    q_minus = x_minus(1:4);
+    r_minus = x_minus(5:end);
+    Hr = Dh(r_minus);
+    [Rqtil, Rrtil] = get_R(x_minus);
+    % Compute Kalman gain in the minimal state space.
+    Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rqtil);
+    Kr = Pr_minus * Hr' / (Hr * Pr_minus * Hr' + Rrtil);
+    
+    % Compute the innovation (measurement residual)
+    magB = y(1:3);
+    yr = y(4:end);
+    dv = magI - q2v(sandwich(q_minus,[0;magB]));
+    dyr = yr - h(r_minus);
+    
+    err = Kq*dv;
+    cq = err(1:3);
+    cbg = err(4:6);
+    dr = Kr * dyr;
+    % Covariance update for the minimal error state.
+    Pq_plus = (Iq - Kq * Hq) * Pq_minus * (Iq - Kq * Hq)' + Kq * Rqtil * Kq';
+    Pr_plus = (Ir - Kr * Hr) * Pr_minus * (Ir - Kr * Hr)' + Kr * Rrtil * Kr';
+
+    %% --- Correction Step (Quaternion Update using the Exponential Map) ---
+    % Compute the correction quaternion from the minimal attitude error using the exponential map.
+    dq = quaternion_exp(-cq/2);
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = qmult(dq,q_minus);
+    % q_plus = q_plus / norm(q_plus);  % re-normalize
+    bg_plus = IMU_minus(1:3) - q2v(sandwich(qconj(q_plus),[0;cbg]));
+    % Update the remaining states additively.
+    r_plus = r_minus + dr(1:end-6);
+    ba_plus = IMU_minus(4:6) + dr(end-5:end-3);
+    Sa_plus = IMU_minus(7:9) + dr(end-2:end);
+    % Compose the full updated state.
+    x_plus = [q_plus; r_plus];
+    IMU_plus = [bg_plus;ba_plus;Sa_plus];
+end
+
+%% --- Helper Functions ---
+
+function dPdt = RiccatiHybrid(t, P, A, Qtil)
+    % Integrates the differential Riccati equation for the minimal error covariance.
+    P = reshape(P,size(Qtil));
+    dPdt = A * P + P * A' + Qtil;
+    dPdt = dPdt(:);
+end
