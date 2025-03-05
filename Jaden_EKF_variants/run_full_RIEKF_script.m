@@ -1,5 +1,5 @@
 clear;
-load("sim_IMU_data.mat")
+load("sim_data_4_EKF_testing.mat")
 measurements = [true_data.magB;true_data.GPS];
 % IMU_freq = 1000; % Hz
 IMU_freq = 100; % Hz
