@@ -2,36 +2,25 @@
 % CODE FOR VALIDATING ALGORITHIM WITH SAME SAMPLE RATE FOR IMU & GPS
 close all; clear; clc;
 
-cd('C:\Users\mailt\Downloads');
-load('MCrun1 1.mat');
-%{
-pos = simData.pos;
-lla = ned2lla(double(pos'), [35.34723084964506, -117.81006429132387, 629], 'ellipsoid');
-lla = lla'
-acc = simData.acc;
-omega = simData.omega;
-[~,c] = size(acc);
-Xplus_history = zeros(22, c);
-%}
-
-
-cd('C:\Users\mailt\Downloads');
-data = load('sim_IMU_data.mat');
-acc = data.acc;
-omega = data.gyro;
-lla = data.LLA;
-GPS = data.GPS;
-t = data.time;
-
+load('sim_data_4_EKF_testing.mat');
+acc = sim_data.acc;
+omega = sim_data.gyro;
+lla = sim_data.LLA;
+GPS = sim_data.GPS;
+magB = sim_data.magB;
+magI = sim_data.magI;
+t = sim_data.time;
+N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
 
 % define H
 H = zeros(3,21); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
 
+Hq = [skew(magI) zeros(3,3)];
 % define R
-R = diag([2 2 2]); % MODIFY TO MODEL GNSS NOISE
-
+R = diag([1e-4 1e-4 2]); % MODIFY TO MODEL GNSS NOISE
+Rq = diag([1e-7 1e-7 1e-7]);
 % define Q ( eqn 7.76b)
 % nu_gv_mat = 6.8256*10^(-10)*eye(3); % using rad/s
 % nu_gu_mat = 3.1002*10^(-7)*eye(3); % using rad/s
@@ -48,36 +37,42 @@ Q = [nu_gv_mat, zeros(3,9);...
     zeros(3,3), nu_gu_mat, zeros(3,6);...
     zeros(3,6), nu_av_mat, zeros(3,3);...
     zeros(3,9), nu_au_mat];
-
+Qq = [nu_gv_mat zeros(3,3);
+      zeros(3,3) nu_gu_mat];
+Iq = eye(6);
 % DEFINE PARAMETERS
 sr = 100; % save sample rate variable
 dt = 1/sr; % get time step
 
 % DEFINE INITIAL CONDITIONS %
-lla0 = [30.9275; -81.51472222222; 45];
+% lla0 = [30.9275; -81.51472222222; 45];
+lla0 = lla(:,1);
 q0 = [0.707106781186548; 0; 0.707106781186547; 0];
 
 % attitude, pos, vel, g bias, a bias, g sf, a sf
 x0 = [q0; lla0; zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1)];
+n = size(x0,1);
 
-att_unc0 = 0.01; % initial attitude uncertainty [m]
+att_unc0 = 0.01; % initial attitude uncertainty [rad]
 pos_unc0 = 0.01; % initial position uncertainty [m]
 vel_unc0 = 0.001; % initial velocity uncertainty [m/s]
 gbias_unc0 = 0.0001; % initial gyro bias uncertainty [rad/s]
 abias_unc0 = 0.0001; % initial accel bias uncertainty [rad/s]
 gsf_unc0 = 0.0001; % gyro scale factor uncertainty [rad/s]
-asf_unc0 = 0.0001; % accel scale factor uncertainty [rad/s]
+asf_unc0 = 0.005; % accel scale factor uncertainty [rad/s]
 
 % create initial covariance matrix
 P0 = diag([att_unc0*ones(1,3), pos_unc0*ones(1,3), vel_unc0*ones(1,3), gbias_unc0*ones(1,3),...
-    gbias_unc0*ones(1,3),gsf_unc0*ones(1,3), asf_unc0*ones(1,3)]);
-
+    abias_unc0*ones(1,3),gsf_unc0*ones(1,3), asf_unc0*ones(1,3)]);
+Pq0 = diag([att_unc0*ones(1,3),abias_unc0*ones(1,3)]);
 % set up initial conditions for the filter
 Pk_plus = P0;
+Pq_plus = Pq0;
 xk_plus = x0;
 
+Xplus_history = zeros(n,N);
 % Run EKF
-running = true;
+% running = true;
     
     % STEP 1: PROPAGATION
     % get sensor measurements at current time step
@@ -86,7 +81,7 @@ running = true;
     w_meas = sens.omega_meas;
     lla_meas = sens.LLA_meas;
     %}
-for i = 1:c
+for i = 1 : N
     % iterates through each point
     a_meas = acc(:,i);
     w_meas = omega(:,i);
@@ -102,18 +97,35 @@ for i = 1:c
     
     % step 1.5: propagate to next step using Euler integration
     [xk_minus,Pk_minus,q_norm] = integrate(xk_plus,Pk_plus,dt,qdot,pdot,vdot,Pdot);
-    
+
+    q = xk_plus(1:4);
+    CB2I = quaternion2DCM(q);
+    bg_minus = xk_minus(11:13);
+    I_omega = CB2I*(w_meas - bg_minus);
+    Fq = [zeros(3,3) -eye(3);
+         zeros(3,3) skew(I_omega)];
+    Gq = [CB2I zeros(3,3);
+         zeros(3,3) -CB2I];
+    Pqdot = Fq*Pq_plus+ Pq_plus*Fq' + Gq*Qq*Gq'; % compute covariance derivative
+    Pq_minus = Pq_plus + dt * Pqdot;
     % STEP 2: KALMAN GAIN
     Kk = Pk_minus*H'/(H*Pk_minus*H' + R);
-    
+    Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
+
     % STEP 3: MEAS. UPDATE
+    q_minus = xk_minus(1:4);
     Delta_x = Kk*(lla_meas - xk_minus(5:7)); % Step 3.1: compute DeltaX vector
-    
-    Xi = createXiMat(xk_minus(1:4));
-    q_plus = xk_minus(1:4) + 1/2*Xi*Delta_x(1:3);
+    dv = magI - q2v(sandwich(q_minus,[0;magB(:,i)]));   
+    err = Kq*dv;
+    cq = err(1:3);
+    cbg = err(4:6);
+    dq = quaternion_exp(-cq/2);
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = qmult(dq,q_minus);
     p_plus = xk_minus(5:7) + Delta_x(4:6);
     v_plus = xk_minus(8:10) + Delta_x(7:9);
-    bg_plus = xk_minus(11:13) + Delta_x(10:12);
+    % bg_plus = xk_minus(11:13) + Delta_x(10:12);
+    bg_plus = xk_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
     ba_plus = xk_minus(14:16) + Delta_x(13:15);
     kg_plus = xk_minus(17:19) + Delta_x(16:18);
     ka_plus = xk_minus(20:22) + Delta_x(19:21);
@@ -121,8 +133,37 @@ for i = 1:c
     xk_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     Xplus_history(:, i) = xk_plus; % saves the value from xplus 1X22 vector for each dt
     Pk_plus = (eye(21,21) - Kk*H)*Pk_minus;
+    Pq_plus = (Iq - Kq * Hq) * Pq_minus * (Iq - Kq * Hq)' + Kq * Rq * Kq';
 end
+att_error = zeros(1,N);
+for k = 1:N
+    q_true = sim_data.q(1:4,k);
+    q_hat = Xplus_history(1:4,k);
+    q_err = qmult(q_true,qconj(q_hat)); % right-invariant error quaternion
+    att_error(k) = 2*acos(abs(q_err(1)));  % error angle in radians
+end
+figure;
+plot(t, att_error, 'LineWidth', 2);
+xlabel('Time (s)');
+ylabel('Attitude Error (rad)');
+title('Attitude Error');
+grid on;
 
+figure
+plot(t,Xplus_history(5:6,:)-lla(1:2,:), 'LineWidth', 2)
+xlabel('time (s)')
+ylabel('degree')
+title('Horizontal Position Error')
+grid on;
+
+figure
+plot(t,Xplus_history(7,:)-lla(3,:),'LineWidth', 2)
+xlabel('time (s)')
+ylabel('altitude error (m)')
+title('Altitude Error')
+grid on;
+
+%% Helper functions
 function wn = compute_wn(x,we)
 
 phi = x(5); % get latitude
@@ -145,7 +186,7 @@ sf_g = x(17:19); % get gyro scale factor
 bias_g = x(11:13); % get gyro bias
 q = x(1:4); % get quaternion
 
-D_bn = quat2dcm(q'); % get DCM from quaternion
+D_bn = quaternion2DCM(q)'; % get DCM from quaternion
 sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
 
 w_n = compute_wn(x,we);
@@ -164,7 +205,7 @@ sf_mat_a = diag(sf_a); % create scale factor matrix for gyro
 
 ahat_b = (eye(3) - sf_mat_a)*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
 
-D_bn = quat2dcm(x(1:4)'); % get DCM from quaternion
+D_bn = quaternion2DCM(x(1:4))'; % get DCM from quaternion
 D_nb = D_bn'; % get DCM from body frame to NED frame
 
 ahat_n = D_nb*ahat_b; % get accel. estimate in NED frame
@@ -173,7 +214,7 @@ end
 function qdot = compute_qdot(x,what)
 q_bn = x(1:4); % get quaternion
 w_quat = [0; what]; % convert angular rate into quaternion form
-qdot = 1/2*quatmultiply(q_bn',w_quat')'; % compute quaternion derivative
+qdot = 1/2*qmult(q_bn,w_quat); % compute quaternion derivative
 end
 
 
@@ -272,7 +313,7 @@ bias_g = x(11:13); % get gyro bias
 bias_a = x(14:16); % get accel bias
 q = x(1:4); % get quaternion
 
-D_bn = quat2dcm(q'); % get DCM from quaternion
+D_bn = quaternion2DCM(q)'; % get DCM from quaternion
 D_nb = D_bn'; % get DCM from body frame to NED frame
 sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
 sf_mat_a = diag(sf_a); % create scale factor matrix for accel
@@ -317,7 +358,7 @@ sf_g = x(17:19); % get gyro scale factor
 sf_a = x(20:22); % get accel scale factor
 q = x(1:4); % get quaternion
 
-D_bn = quat2dcm(q'); % get DCM from quaternion
+D_bn = quaternion2DCM(q)'; % get DCM from quaternion
 D_nb = D_bn'; % get DCM from body frame to NED frame
 sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
 sf_mat_a = diag(sf_a); % create scale factor matrix for accel

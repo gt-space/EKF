@@ -15,7 +15,7 @@ for i = 1:length(time)
 end
 %% generate IMU outputs
 acc = zeros(size(accB)); % IMU output of acceleration
-nla = 5e-3; % nonlinearity of accelerometer, 0.5% of +-16g  
+nla = 5e-4; % nonlinearity of accelerometer, 0.5% of +-16g  
 ba = zeros(size(omegaB)); % bias of accelerometer
 Sa = ones(size(omegaB)); % scaling factor of accelerometer
 gyro = zeros(size(omegaB)); % IMU output of angular velocity
@@ -77,4 +77,5 @@ sim_data.LLA = LLA; % "true" LLA position
 sim_data.q = q; % "true" attitude
 sim_data.GPS = GPS; % GPS measurment
 sim_data.magB = magB; % magnetometer measurement
+sim_data.magI = magI;
 save("sim_data_4_EKF_testing.mat","sim_data");

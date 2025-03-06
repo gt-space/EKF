@@ -1,6 +1,6 @@
 clear;
 load("sim_data_4_EKF_testing.mat")
-measurements = [true_data.magB;true_data.GPS];
+measurements = [sim_data.magB;sim_data.GPS];
 % IMU_freq = 1000; % Hz
 IMU_freq = 100; % Hz
 GPS_freq = 25; % Hz
@@ -9,11 +9,11 @@ Mag_freq = 100; % Hz
 dt = 1/IMU_freq;
 ratio = IMU_freq / GPS_freq;
 
-time = double(true_data.time);
+time = double(sim_data.time);
 N = length(time);
 magI = [0.4891; 0.104; 0.866];
 get_inert_mag_vec = @(x) magI; % assume constant mag vector
-U = [true_data.gyro;true_data.acc];
+U = [sim_data.gyro;sim_data.acc];
 
 hq = @(x) quaternion2DCM(x(1:4))'*magI ; % magnetometer measures magB
 h = @(rs) rs(1:3); % rs is the remaining state, measures LLA position
@@ -21,8 +21,8 @@ hb = @(rs) rs(3); % barometer TODO
 f = @(t,x,uB,IMU) qrv_dynamics(t,x,uB,IMU);
 Dh = @(rs) h_jacobian(rs);
 Df = @(x,u) f_jacobian(x,u);
-q0 = true_data.q(:,1);
-r0 = true_data.LLA(:,1);
+q0 = sim_data.q(:,1);
+r0 = sim_data.LLA(:,1);
 v0 = [0;0;0];
 x0 = [q0;r0;v0];
 
@@ -43,9 +43,9 @@ xhat0(1:4) = xhat0(1:4)/norm(xhat0(1:4));
 [Xhat,IMU,Pq,Pr] = hybrid_full_RIEKF_offline(f,Df,h,Dh,xhat0,IMU0,Pq0,Pr0,time,U,...
                                 measurements,get_Q,@get_R,get_inert_mag_vec,ratio);
 att_error = zeros(length(time),1);
-position_error = Xhat(5:7,:) - true_data.LLA;
+position_error = Xhat(5:7,:) - sim_data.LLA;
 for k = 1:length(time)
-    q_true = true_data.q(1:4,k);
+    q_true = sim_data.q(1:4,k);
     q_hat = Xhat(1:4,k);
     q_err = qmult(qconj(q_hat), q_true); % right-invariant error quaternion
     q_err = q_err / norm(q_err);
