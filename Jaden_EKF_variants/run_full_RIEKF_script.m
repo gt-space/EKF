@@ -5,7 +5,7 @@ measurements = [sim_data.magB;sim_data.GPS];
 IMU_freq = 100; % Hz
 GPS_freq = 25; % Hz
 Baro_freq = 100; % Hz
-Mag_freq = 100; % Hz
+Mag_freq = 10; % Hz
 dt = 1/IMU_freq;
 ratio = IMU_freq / GPS_freq;
 

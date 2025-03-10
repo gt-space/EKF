@@ -15,7 +15,7 @@ for i = 1:length(time)
 end
 %% generate IMU outputs
 acc = zeros(size(accB)); % IMU output of acceleration
-nla = 5e-4; % nonlinearity of accelerometer, 0.5% of +-16g  
+nla = 5e-3; % nonlinearity of accelerometer, 0.5% of +-16g  
 ba = zeros(size(omegaB)); % bias of accelerometer
 Sa = ones(size(omegaB)); % scaling factor of accelerometer
 gyro = zeros(size(omegaB)); % IMU output of angular velocity
@@ -24,15 +24,15 @@ bg = zeros(size(omegaB)); % bias of gyro
 Sg = ones(size(omegaB)); % scaling factor of gyro
 % random walk TODO
 for i = 2:length(time)
-    Sa(:,i) = Sa(:,i-1) + nla*2*(rand(3,1)-0.5);
-    ba(:,i) = ba(:,i-1) + dt*40e-6 *9.8*randn(3,1);   % 40 mug
-    Sg(:,i) = Sg(:,i-1) + nlg*2*(rand(3,1)-0.5);
-    bg(:,i) = bg(:,i-1) + dt*deg2rad(3/3600)*randn(3,1);   
+    Sa(:,i) = Sa(:,i-1) + nla/10*(rand(3,1)-0.5);
+    ba(:,i) = ba(:,i-1) + dt/10*40e-6 *9.8*randn(3,1);   % 40 mug
+    Sg(:,i) = Sg(:,i-1) + nlg/10*(rand(3,1)-0.5);
+    bg(:,i) = bg(:,i-1) + dt/10*deg2rad(3/3600)*randn(3,1);   
 end
-S_acc = eye(3) * (200e-6*9.81)*sqrt(IMU_freq); % std of acc noise, 200 mug/sqrt(Hz)
-S_gyro = eye(3) * deg2rad(12e-3)*sqrt(IMU_freq); % std of gyro noise, 12 mdps/sqrt(Hz)
-acc_noise = S_acc*randn(size(acc));
-gyro_noise = S_gyro*randn(size(gyro));
+R_acc = eye(3) * (200e-6*9.81)*sqrt(IMU_freq); % std of acc noise, 200 mug/sqrt(Hz)
+R_gyro = eye(3) * deg2rad(12e-3)*sqrt(IMU_freq); % std of gyro noise, 12 mdps/sqrt(Hz)
+acc_noise = R_acc*randn(size(acc));
+gyro_noise = R_gyro*randn(size(gyro));
 
 for i = 1:length(time)
     acc(:,i) = Sa(:,i) .* accB(:,i) + ba(:,i) + acc_noise(:,i); 
@@ -47,8 +47,8 @@ LLA = zeros(3, length(time));
 for i = 1: length(time)
     LLA(:,i) = ned2lla(posI(:,i),lla0); % need to verify ned2lla TODO
 end
-S_gps = diag([(1.35e-5/2);(1.63e-5/2);(2/2)]); % GPS noise TODO
-noisy_LLA = (LLA + S_gps * randn(size(LLA)));
+R_gps = diag([1.35e-5;1.63e-5;2]); % GPS noise TODO
+noisy_LLA = (LLA + R_gps * randn(size(LLA)));
 GPS = nan(size(LLA));
 for i = 1: ratio: length(time)
     GPS(:,i) = noisy_LLA(:,i); 
@@ -58,10 +58,12 @@ end
 %% generate magnotometer data
 % TODO need sensor datasheet
 magI = [0.4891; 0.104; 0.866]; % need more precise vector at launch site TODO
-magB = zeros(size(bg));
-sig_mag = 1e-8; % magnetometer noise TODO
-mag_noise = sig_mag * randn(size(magB));
-for i = 1:size(magB,2)
+mag_freq = 10; % Hz
+ratio = round(IMU_freq / mag_freq);
+R_mag = diag([3.2e-7 4.1e-7 3.2e-7]); % magnetometer noise TODO
+magB = nan(size(bg));
+mag_noise = R_mag * randn(size(magB));
+for i = 1:ratio:size(magB,2)
     magB(:,i) = quaternion2DCM(q(:,i))' * magI ;
 end
 magB = magB + mag_noise;

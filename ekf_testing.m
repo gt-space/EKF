@@ -13,25 +13,32 @@ t = sim_data.time;
 N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
+% DEFINE PARAMETERS
+IMU_freq = 100; % save sample rate variable
+dt = 1/IMU_freq; % get time step
+GPS_freq = 20;
+mag_freq = 100;
 
 % define H
 H = zeros(3,21); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
-
-Hq = [skew(magI) zeros(3,3)];
+Hb = 0 ; % barometer measurement function Jacobian
+Hq = [skew(magI) zeros(3,3)]; % magnetometer measurement Jacobian and gyro bias
 % define R
-R = diag([1e-4 1e-4 2]); % MODIFY TO MODEL GNSS NOISE
-Rq = diag([1e-7 1e-7 1e-7]);
+R = diag([1.35e-5;1.63e-5;2]); % MODIFY TO MODEL GNSS NOISE
+Rq = diag([3.2e-7 4.1e-7 3.2e-7]);
+Rb = 1e-8; % barometer noise variance
+
+
 % define Q ( eqn 7.76b)
 % nu_gv_mat = 6.8256*10^(-10)*eye(3); % using rad/s
 % nu_gu_mat = 3.1002*10^(-7)*eye(3); % using rad/s
 % nu_av_mat = 1.6867*10^(-4)*eye(3); % using m/s^2
 % nu_au_mat = 1.3058*10^(-6)*eye(3); % using m/s^2
-
 % MODIFY TO MODEL GYRO/ACCEL NOISE
-nu_gv_mat = 0.1*eye(3); % using rad/s
-nu_gu_mat = 10^(-6)*eye(3); % using rad/s
-nu_av_mat = 0.1*eye(3); % using m/s^2
-nu_au_mat = 10^(-6)*eye(3); % using m/s^2
+nu_gv_mat = deg2rad(12e-3)*sqrt(IMU_freq)*eye(3); % using rad/s
+nu_gu_mat = 1/IMU_freq*deg2rad(3/3600)*eye(3); % using rad/s
+nu_av_mat = (200e-6*9.81)*sqrt(IMU_freq)*eye(3); % using m/s^2
+nu_au_mat = 1/IMU_freq*40e-6 *9.8*eye(3); % using m/s^2
 
 Q = [nu_gv_mat, zeros(3,9);...
     zeros(3,3), nu_gu_mat, zeros(3,6);...
@@ -39,10 +46,6 @@ Q = [nu_gv_mat, zeros(3,9);...
     zeros(3,9), nu_au_mat];
 Qq = [nu_gv_mat zeros(3,3);
       zeros(3,3) nu_gu_mat];
-Iq = eye(6);
-% DEFINE PARAMETERS
-sr = 100; % save sample rate variable
-dt = 1/sr; % get time step
 
 % DEFINE INITIAL CONDITIONS %
 % lla0 = [30.9275; -81.51472222222; 45];
@@ -66,9 +69,9 @@ P0 = diag([att_unc0*ones(1,3), pos_unc0*ones(1,3), vel_unc0*ones(1,3), gbias_unc
     abias_unc0*ones(1,3),gsf_unc0*ones(1,3), asf_unc0*ones(1,3)]);
 Pq0 = diag([att_unc0*ones(1,3),abias_unc0*ones(1,3)]);
 % set up initial conditions for the filter
-Pk_plus = P0;
+x_plus = x0;
+P_plus = P0;
 Pq_plus = Pq0;
-xk_plus = x0;
 
 Xplus_history = zeros(n,N);
 % Run EKF
@@ -85,55 +88,27 @@ for i = 1 : N
     % iterates through each point
     a_meas = acc(:,i);
     w_meas = omega(:,i);
-    lla_meas = lla(:,i);
     
-    w_hat = compute_what(xk_plus,w_meas,we); % compute gyro estimate (accounting for sf & bias)
-    qdot = compute_qdot(xk_plus,w_hat); % compute attitude derivative
-    pdot = compute_pdot(xk_plus); % compute position derivative
+    w_hat = compute_what(x_plus,w_meas,we); % compute gyro estimate (accounting for sf & bias)
+    ahat_n = compute_ahat(x_plus,a_meas); % compute accel estimate (accounting for sf, bias & frame transformation)
     
-    ahat_n = compute_ahat(xk_plus,a_meas); % compute accel estimate (accounting for sf, bias & frame transformation)
-    vdot = compute_vdot(xk_plus,ahat_n,we); % compute velocity derivative
-    Pdot = compute_Pdot(xk_plus,Pk_plus,Q,a_meas,w_meas,we); % compute covariance derivative
-    
-    % step 1.5: propagate to next step using Euler integration
-    [xk_minus,Pk_minus,q_norm] = integrate(xk_plus,Pk_plus,dt,qdot,pdot,vdot,Pdot);
+    [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt);
 
-    q = xk_plus(1:4);
-    CB2I = quaternion2DCM(q);
-    bg_minus = xk_minus(11:13);
-    I_omega = CB2I*(w_meas - bg_minus);
-    Fq = [zeros(3,3) -eye(3);
-         zeros(3,3) skew(I_omega)];
-    Gq = [CB2I zeros(3,3);
-         zeros(3,3) -CB2I];
-    Pqdot = Fq*Pq_plus+ Pq_plus*Fq' + Gq*Qq*Gq'; % compute covariance derivative
-    Pq_minus = Pq_plus + dt * Pqdot;
-    % STEP 2: KALMAN GAIN
-    Kk = Pk_minus*H'/(H*Pk_minus*H' + R);
-    Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
-
-    % STEP 3: MEAS. UPDATE
-    q_minus = xk_minus(1:4);
-    Delta_x = Kk*(lla_meas - xk_minus(5:7)); % Step 3.1: compute DeltaX vector
-    dv = magI - q2v(sandwich(q_minus,[0;magB(:,i)]));   
-    err = Kq*dv;
-    cq = err(1:3);
-    cbg = err(4:6);
-    dq = quaternion_exp(-cq/2);
-    % q_plus = delta_q ⊗ q_minus
-    q_plus = qmult(dq,q_minus);
-    p_plus = xk_minus(5:7) + Delta_x(4:6);
-    v_plus = xk_minus(8:10) + Delta_x(7:9);
-    % bg_plus = xk_minus(11:13) + Delta_x(10:12);
-    bg_plus = xk_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
-    ba_plus = xk_minus(14:16) + Delta_x(13:15);
-    kg_plus = xk_minus(17:19) + Delta_x(16:18);
-    ka_plus = xk_minus(20:22) + Delta_x(19:21);
-    
-    xk_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
-    Xplus_history(:, i) = xk_plus; % saves the value from xplus 1X22 vector for each dt
-    Pk_plus = (eye(21,21) - Kk*H)*Pk_minus;
-    Pq_plus = (Iq - Kq * Hq) * Pq_minus * (Iq - Kq * Hq)' + Kq * Rq * Kq';
+    lla_meas = GPS(:,i);
+    mag_meas = magB(:,i);
+    % baro_meas = baro(i);
+    if ~(sum(isnan(lla_meas)) || sum(isnan(mag_meas))) % both available
+        [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas);
+    elseif ~sum(isnan(lla_meas))
+        [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas);
+    elseif ~ sum(isnan(mag_meas))
+        [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas);
+    else
+        x_plus = x_minus;
+        P_plus = P_minus;
+        Pq_plus = Pq_minus;
+    end
+    Xplus_history(:, i) = x_plus; % saves the value from xplus 1X22 vector for each dt
 end
 att_error = zeros(1,N);
 for k = 1:N
@@ -164,6 +139,124 @@ title('Altitude Error')
 grid on;
 
 %% Helper functions
+function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas)
+    % STEP 2: KALMAN GAIN
+    Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
+
+    % STEP 3: MEAS. UPDATE
+    q_minus = x_minus(1:4);
+    dv = magI - q2v(sandwich(q_minus,[0;mag_meas]));   
+    err = Kq*dv;
+    cq = err(1:3);
+    cbg = err(4:6);
+    dq = quaternion_exp(-cq/2);
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = qmult(dq,q_minus);
+    bg_plus = x_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
+    x_plus = x_minus;
+    x_plus(1:4) = q_plus;
+    x_plus(11:13) = bg_plus;
+    P_plus = P_minus;
+    Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
+end
+
+function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas)
+    % STEP 2: KALMAN GAIN
+    K = P_minus*H'/(H*P_minus*H' + R);
+
+    % STEP 3: MEAS. UPDATE
+    q_minus = x_minus(1:4);
+    Delta_x = K*(lla_meas - x_minus(5:7)); % Step 3.1: compute DeltaX vector
+    dq = quaternion_exp(-Delta_x(1:3)/2);
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = qmult(dq,q_minus);
+    p_plus = x_minus(5:7) + Delta_x(4:6);
+    v_plus = x_minus(8:10) + Delta_x(7:9);
+    bg_plus = xk_minus(11:13) + Delta_x(10:12);
+    ba_plus = x_minus(14:16) + Delta_x(13:15);
+    kg_plus = x_minus(17:19) + Delta_x(16:18);
+    ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(ba_plus) > 0.01
+    %    ba_plus = ba_plus/100;
+    % end
+    % if norm(ka_plus) > 0.01
+    %    ka_plus = ka_plus/100;
+    % end
+    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
+    P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
+    Pq_plus = Pq_minus;
+end
+function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas)
+    % STEP 2: KALMAN GAIN
+    K = P_minus*H'/(H*P_minus*H' + R);
+    Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
+
+    % STEP 3: MEAS. UPDATE
+    q_minus = x_minus(1:4);
+    Delta_x = K*(lla_meas - x_minus(5:7)); % Step 3.1: compute DeltaX vector
+    dv = magI - q2v(sandwich(q_minus,[0;mag_meas]));   
+    err = Kq*dv;
+    cq = err(1:3);
+    cbg = err(4:6);
+    dq = quaternion_exp(-cq/2);
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = qmult(dq,q_minus);
+    p_plus = x_minus(5:7) + Delta_x(4:6);
+    v_plus = x_minus(8:10) + Delta_x(7:9);
+    % bg_plus = xk_minus(11:13) + Delta_x(10:12);
+    bg_plus = x_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
+    ba_plus = x_minus(14:16) + Delta_x(13:15);
+    kg_plus = x_minus(17:19) + Delta_x(16:18);
+    ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(ba_plus) > 0.01
+    %    ba_plus = ba_plus/100;
+    % end
+    % if norm(ka_plus) > 0.01
+    %    ka_plus = ka_plus/100;
+    % end
+    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
+    P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
+    Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
+end
+function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt)
+    % step 1.5: propagate to next step using Euler integration
+    qdot = compute_qdot(x_plus,w_hat); % compute attitude derivative
+    pdot = compute_pdot(x_plus); % compute position derivative
+    vdot = compute_vdot(x_plus,ahat_n,we); % compute velocity derivative
+    Pdot = compute_Pdot(x_plus,P_plus,Q,a_meas,w_meas,we); % compute covariance derivative
+    Pqdot = compute_Pqdot(x_plus,Pq_plus,Qq,w_meas);
+    [x_minus,P_minus,Pq_minus] = integrate(x_plus,P_plus,Pq_plus,dt,qdot,pdot,vdot,Pdot,Pqdot);
+    % X0 = [x_plus;P_plus(:);Pq_plus(:)];
+    % [~,X] = ode45(@(t,x)dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq),[0,dt],X0);
+    % x_minus = X(end,1:22)';
+    % P_minus = reshape(X(end,23:end-36)',21,21);
+    % Pq_minus = reshape(X(end,end-35:end)',6,6);
+end
+function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq)
+    xk_plus = x(1:22);
+    Pk_plus = reshape(x(23:end-36),21,21);
+    Pq_plus = reshape(x(end-35:end),6,6);
+    qdot = compute_qdot(xk_plus,w_hat); % compute attitude derivative
+    pdot = compute_pdot(xk_plus); % compute position derivative
+    vdot = compute_vdot(xk_plus,ahat_n,we); % compute velocity derivative
+    Pdot = compute_Pdot(xk_plus,Pk_plus,Q,a_meas,w_meas,we); % compute covariance derivative
+    Pdot = Pdot(:);
+    Pqdot = compute_Pqdot(xk_plus,Pq_plus,Qq,w_meas);
+    Pqdot = Pqdot(:);
+    xdot = [qdot;pdot;vdot;zeros(12,1);Pdot;Pqdot];
+end
+function Pqdot = compute_Pqdot(xk_plus,Pq_plus,Qq,w_meas)
+    q = xk_plus(1:4);
+    CB2I = quaternion2DCM(q);
+    bg_minus = xk_plus(11:13);
+    I_omega = CB2I*(w_meas - bg_minus);
+    Fq = [zeros(3,3) -eye(3);
+         zeros(3,3) skew(I_omega)];
+    Gq = [CB2I zeros(3,3);
+         zeros(3,3) -CB2I];
+    Pqdot = Fq*Pq_plus+ Pq_plus*Fq' + Gq*Qq*Gq'; % compute covariance derivative
+end
+
 function wn = compute_wn(x,we)
 
 phi = x(5); % get latitude
@@ -186,11 +279,10 @@ sf_g = x(17:19); % get gyro scale factor
 bias_g = x(11:13); % get gyro bias
 q = x(1:4); % get quaternion
 
-D_bn = quaternion2DCM(q)'; % get DCM from quaternion
+D_bn = quaternion2DCM(q)'; % get DCM I2B from quaternion
 sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
 
 w_n = compute_wn(x,we);
-% w_n = zeros(3,1); 
 
 w_hat = (eye(3) - sf_mat_g)*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
 
@@ -205,8 +297,7 @@ sf_mat_a = diag(sf_a); % create scale factor matrix for gyro
 
 ahat_b = (eye(3) - sf_mat_a)*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
 
-D_bn = quaternion2DCM(x(1:4))'; % get DCM from quaternion
-D_nb = D_bn'; % get DCM from body frame to NED frame
+D_nb = quaternion2DCM(x(1:4)); % get DCM from body frame to NED frame 
 
 ahat_n = D_nb*ahat_b; % get accel. estimate in NED frame
 end
@@ -313,8 +404,8 @@ bias_g = x(11:13); % get gyro bias
 bias_a = x(14:16); % get accel bias
 q = x(1:4); % get quaternion
 
-D_bn = quaternion2DCM(q)'; % get DCM from quaternion
-D_nb = D_bn'; % get DCM from body frame to NED frame
+D_nb = quaternion2DCM(q); % get DCM from body frame to NED frame
+D_bn = D_nb'; 
 sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
 sf_mat_a = diag(sf_a); % create scale factor matrix for accel
 
@@ -513,22 +604,23 @@ ssMat = [0, -vec(3), vec(2);
     -vec(2), vec(1), 0];
 end
 
-function [x_next,P_next,q_norm] = integrate(x,P,dt,qdot,pdot,vdot,Pdot)
+function [x_minus,P_minus,Pq_minus] = integrate(x,P,Pq,dt,qdot,pdot,vdot,Pdot,Pqdot)
 
 % assemble xdot vector
 xdot = [qdot; pdot; vdot; zeros(12,1)];
 
-x_next = x + dt*xdot; % use Euler integration
-q_next = x_next(1:4); % get propagated quaternion
+x_minus = x + dt*xdot; % use Euler integration
+q_next = x_minus(1:4); % get propagated quaternion
 
 q_norm = norm(q_next);
 if q_norm > 1.02 % if quaternion norm is above 1% greater than unity
 %     warning('Quaternion norm of %.2f is > 2 percent of unity, consider decreasing integrator step size.',norm(q_next))
 end
+x_minus(1:4) = q_next/q_norm; % normalize quaternion
 
-x_next(1:4) = q_next/q_norm; % normalize quaternion
+P_minus = P + dt*Pdot; % use Euler integration
+Pq_minus = Pq + dt*Pqdot; % use Euler integration
 
-P_next = P + dt*Pdot; % use Euler integration
 end
 
 function Xi = createXiMat(q)
