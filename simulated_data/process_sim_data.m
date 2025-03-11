@@ -1,11 +1,12 @@
 clear;
 load("raw_flight_sim_data.mat");
 % apogee_index = 9447;
-final_index = 10000; % 100 secs, covering apogee
-posI = simData.pos(:,1:final_index); % NED
-accI = simData.acc(:,1:final_index); % NED
+final_index = 104932; % 100 secs, covering apogee
+% final_index = 50000; % 100 secs, covering apogee
+posI = double(simData.pos(:,1:final_index)); % NED
+accI = double(simData.acc(:,1:final_index)); % NED
 q = double(simData.quat(:,1:final_index));
-omegaB = simData.omega(:,1:final_index); % body
+omegaB = double(simData.omega(:,1:final_index)); % body
 time = double(simData.time(:,1:final_index));
 dt = time(2) - time(1);
 IMU_freq = round(1/dt); % Hz
@@ -40,18 +41,20 @@ for i = 1:length(time)
 end
 
 %% generate GPS data
-lla0 = simData.lla0;
+lla0 = double(simData.lla0);
 GPS_freq = 2; % Hz
 ratio = round(IMU_freq / GPS_freq);
 LLA = zeros(3, length(time));
 for i = 1: length(time)
-    LLA(:,i) = ned2lla(posI(:,i),lla0); % need to verify ned2lla TODO
+    LLA(:,i) = ned2lla(posI(:,i),lla0); 
 end
-R_gps = diag([1.35e-5;1.63e-5;2]); % GPS noise TODO
+R_gps = diag([1.35e-5;1.65e-5;2]); % GPS noise TODO
 noisy_LLA = (LLA + R_gps * randn(size(LLA)));
 GPS = nan(size(LLA));
 for i = 1: ratio: length(time)
-    GPS(:,i) = noisy_LLA(:,i); 
+    if noisy_LLA(3,i) < 25000 && norm(accI(:,i)) < 4*9.8
+        GPS(:,i) = noisy_LLA(:,i);
+    end
 end
 % GPS(:,1:3000) = nan(3,3000); % simulated GPS cutoff
 % GPS(:,6001:end) = nan(3,4000);
@@ -60,7 +63,7 @@ end
 magI = [0.4891; 0.104; 0.866]; % need more precise vector at launch site TODO
 mag_freq = 10; % Hz
 ratio = round(IMU_freq / mag_freq);
-R_mag = diag([3.2e-7 4.1e-7 3.2e-7]); % magnetometer noise TODO
+R_mag = diag([3.2e-7 4.1e-7 3.2e-7]); % magnetometer noise TODO in Tesla
 magB = nan(size(bg));
 mag_noise = R_mag * randn(size(magB));
 for i = 1:ratio:size(magB,2)
@@ -75,7 +78,8 @@ sim_data.ba = ba; % "true" bias
 sim_data.bg = bg;
 sim_data.Sa = Sa; % "true" scaling factor
 sim_data.Sg = Sg;
-sim_data.LLA = LLA; % "true" LLA position
+sim_data.LLA0 = lla0; % "true" NED position
+sim_data.NED = posI; % "true" NED position
 sim_data.q = q; % "true" attitude
 sim_data.GPS = GPS; % GPS measurment
 sim_data.magB = magB; % magnetometer measurement

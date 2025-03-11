@@ -3,7 +3,7 @@ load("sim_data_4_EKF_testing.mat")
 measurements = [sim_data.magB;sim_data.GPS];
 % IMU_freq = 1000; % Hz
 IMU_freq = 100; % Hz
-GPS_freq = 25; % Hz
+GPS_freq = 2; % Hz
 Baro_freq = 100; % Hz
 Mag_freq = 10; % Hz
 dt = 1/IMU_freq;

@@ -5,7 +5,7 @@ close all; clear; clc;
 load('sim_data_4_EKF_testing.mat');
 acc = sim_data.acc;
 omega = sim_data.gyro;
-lla = sim_data.LLA;
+ned = sim_data.NED;
 GPS = sim_data.GPS;
 magB = sim_data.magB;
 magI = sim_data.magI;
@@ -13,6 +13,7 @@ t = sim_data.time;
 N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
+% we = 0;
 % DEFINE PARAMETERS
 IMU_freq = 100; % save sample rate variable
 dt = 1/IMU_freq; % get time step
@@ -24,7 +25,8 @@ H = zeros(3,21); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
 Hb = 0 ; % barometer measurement function Jacobian
 Hq = [skew(magI) zeros(3,3)]; % magnetometer measurement Jacobian and gyro bias
 % define R
-R = diag([1.35e-5;1.63e-5;2]); % MODIFY TO MODEL GNSS NOISE
+
+R = diag([1.35e-5;1.65e-5;2]); % MODIFY TO MODEL GNSS NOISE
 Rq = diag([3.2e-7 4.1e-7 3.2e-7]);
 Rb = 1e-8; % barometer noise variance
 
@@ -49,20 +51,20 @@ Qq = [nu_gv_mat zeros(3,3);
 
 % DEFINE INITIAL CONDITIONS %
 % lla0 = [30.9275; -81.51472222222; 45];
-lla0 = lla(:,1);
+lla0 = sim_data.LLA0;
 q0 = [0.707106781186548; 0; 0.707106781186547; 0];
 
 % attitude, pos, vel, g bias, a bias, g sf, a sf
 x0 = [q0; lla0; zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1)];
 n = size(x0,1);
 
-att_unc0 = 0.01; % initial attitude uncertainty [rad]
-pos_unc0 = 0.01; % initial position uncertainty [m]
-vel_unc0 = 0.001; % initial velocity uncertainty [m/s]
-gbias_unc0 = 0.0001; % initial gyro bias uncertainty [rad/s]
-abias_unc0 = 0.0001; % initial accel bias uncertainty [rad/s]
-gsf_unc0 = 0.0001; % gyro scale factor uncertainty [rad/s]
-asf_unc0 = 0.005; % accel scale factor uncertainty [rad/s]
+att_unc0 = 1e-4; % initial attitude uncertainty [rad]
+pos_unc0 = 1e-4; % initial position uncertainty [m]
+vel_unc0 = 1e-4; % initial velocity uncertainty [m/s]
+gbias_unc0 = 1e-4; % initial gyro bias uncertainty [rad/s]
+abias_unc0 = 1e-4; % initial accel bias uncertainty [rad/s]
+gsf_unc0 = 1e-4; % gyro scale factor uncertainty [rad/s]
+asf_unc0 = 1e-4; % accel scale factor uncertainty [rad/s]
 
 % create initial covariance matrix
 P0 = diag([att_unc0*ones(1,3), pos_unc0*ones(1,3), vel_unc0*ones(1,3), gbias_unc0*ones(1,3),...
@@ -110,29 +112,34 @@ for i = 1 : N
     end
     Xplus_history(:, i) = x_plus; % saves the value from xplus 1X22 vector for each dt
 end
+
 att_error = zeros(1,N);
 for k = 1:N
     q_true = sim_data.q(1:4,k);
     q_hat = Xplus_history(1:4,k);
     q_err = qmult(q_true,qconj(q_hat)); % right-invariant error quaternion
-    att_error(k) = 2*acos(abs(q_err(1)));  % error angle in radians
+    att_error(k) = rad2deg(2*atan2(norm(q_err(2:4)),q_err(1)));  % error angle in radians
 end
 figure;
 plot(t, att_error, 'LineWidth', 2);
 xlabel('Time (s)');
-ylabel('Attitude Error (rad)');
+ylabel('Attitude Error (degree)');
 title('Attitude Error');
 grid on;
 
+ned_error = zeros(size(ned));
+for i = 1:N
+    ned_error(:,i) = lla2ned(Xplus_history(5:7,i),lla0)-ned(:,i);
+end
 figure
-plot(t,Xplus_history(5:6,:)-lla(1:2,:), 'LineWidth', 2)
+plot(t,ned_error(1:2,:), 'LineWidth', 2)
 xlabel('time (s)')
-ylabel('degree')
+ylabel('(m)')
 title('Horizontal Position Error')
 grid on;
 
 figure
-plot(t,Xplus_history(7,:)-lla(3,:),'LineWidth', 2)
+plot(t,-ned_error(3,:),'LineWidth', 2)
 xlabel('time (s)')
 ylabel('altitude error (m)')
 title('Altitude Error')
@@ -176,12 +183,15 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
-    % if norm(ba_plus) > 0.01
-    %    ba_plus = ba_plus/100;
+    % if norm(ba_plus) > 0
+    %    ba_plus = zeros(3,1);
     % end
-    % if norm(ka_plus) > 0.01
-    %    ka_plus = ka_plus/100;
+    % if norm(ka_plus) > 0
+    %    ka_plus = zeros(3,1);
     % end
+    if norm(kg_plus) > 0
+       kg_plus = zeros(3,1);
+    end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = Pq_minus;
@@ -208,12 +218,15 @@ function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
-    % if norm(ba_plus) > 0.01
-    %    ba_plus = ba_plus/100;
+    % if norm(ba_plus) > 0
+    %    ba_plus = zeros(3,1);
     % end
-    % if norm(ka_plus) > 0.01
-    %    ka_plus = ka_plus/100;
+    % if norm(ka_plus) > 0
+    %    ka_plus = zeros(3,1);
     % end
+    if norm(kg_plus) > 0
+       kg_plus = zeros(3,1);
+    end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
@@ -233,15 +246,15 @@ function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat
     % Pq_minus = reshape(X(end,end-35:end)',6,6);
 end
 function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq)
-    xk_plus = x(1:22);
-    Pk_plus = reshape(x(23:end-36),21,21);
+    x_plus = x(1:22);
+    P_plus = reshape(x(23:end-36),21,21);
     Pq_plus = reshape(x(end-35:end),6,6);
-    qdot = compute_qdot(xk_plus,w_hat); % compute attitude derivative
-    pdot = compute_pdot(xk_plus); % compute position derivative
-    vdot = compute_vdot(xk_plus,ahat_n,we); % compute velocity derivative
-    Pdot = compute_Pdot(xk_plus,Pk_plus,Q,a_meas,w_meas,we); % compute covariance derivative
+    qdot = compute_qdot(x_plus,w_hat); % compute attitude derivative
+    pdot = compute_pdot(x_plus); % compute position derivative
+    vdot = compute_vdot(x_plus,ahat_n,we); % compute velocity derivative
+    Pdot = compute_Pdot(x_plus,P_plus,Q,a_meas,w_meas,we); % compute covariance derivative
     Pdot = Pdot(:);
-    Pqdot = compute_Pqdot(xk_plus,Pq_plus,Qq,w_meas);
+    Pqdot = compute_Pqdot(x_plus,Pq_plus,Qq,w_meas);
     Pqdot = Pqdot(:);
     xdot = [qdot;pdot;vdot;zeros(12,1);Pdot;Pqdot];
 end
@@ -280,11 +293,10 @@ bias_g = x(11:13); % get gyro bias
 q = x(1:4); % get quaternion
 
 D_bn = quaternion2DCM(q)'; % get DCM I2B from quaternion
-sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
 
 w_n = compute_wn(x,we);
 
-w_hat = (eye(3) - sf_mat_g)*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
+w_hat = 1./(1 - sf_g).*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
 
 end
 
@@ -293,9 +305,7 @@ function ahat_n = compute_ahat(x,a_meas)
 sf_a = x(20:22); % get accel scale factor
 bias_a = x(14:16); % get accel bias
 
-sf_mat_a = diag(sf_a); % create scale factor matrix for gyro
-
-ahat_b = (eye(3) - sf_mat_a)*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
+ahat_b = 1./(1 - sf_a).*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
 
 D_nb = quaternion2DCM(x(1:4)); % get DCM from body frame to NED frame 
 
