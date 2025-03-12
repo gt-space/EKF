@@ -21,7 +21,7 @@ GPS_freq = 20;
 mag_freq = 100;
 
 % define H
-H = zeros(3,21); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
+H = zeros(3,15); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
 Hb = 0 ; % barometer measurement function Jacobian
 Hq = [skew(magI) zeros(3,3)]; % magnetometer measurement Jacobian and gyro bias
 % define R
@@ -52,7 +52,7 @@ Qq = [nu_gv_mat zeros(3,3);
 % DEFINE INITIAL CONDITIONS %
 % lla0 = [30.9275; -81.51472222222; 45];
 lla0 = sim_data.LLA0;
-q0 = [0.707106781186548; 0; 0.707106781186547; 0];
+q0 = sim_data.q(:,1);
 
 % attitude, pos, vel, g bias, a bias
 x0 = [q0; lla0; zeros(3,1); zeros(3,1); zeros(3,1)];
@@ -74,6 +74,7 @@ P_plus = P0;
 Pq_plus = Pq0;
 
 Xplus_history = zeros(n,N);
+Xplus_history(:,1) = x0;
 % Run EKF
 % running = true;
     
@@ -84,7 +85,7 @@ Xplus_history = zeros(n,N);
     w_meas = sens.omega_meas;
     lla_meas = sens.LLA_meas;
     %}
-for i = 1 : N
+for i = 2 : N
     % if i == sim_data.apogee_idx + 3000
     %     x_plus(11:13) = zeros(3,1);
     % end
@@ -186,19 +187,17 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
     v_plus = x_minus(8:10) + Delta_x(7:9);
     bg_plus = xk_minus(11:13) + Delta_x(10:12);
     ba_plus = x_minus(14:16) + Delta_x(13:15);
-    kg_plus = x_minus(17:19) + Delta_x(16:18);
-    ka_plus = x_minus(20:22) + Delta_x(19:21);
     % if norm(kg_plus) > 0
     %    kg_plus = zeros(3,1);
     % end
-    % if norm(ba_plus) > 0
-    %    ba_plus = zeros(3,1);
-    % end
+    if norm(ba_plus) > .2
+       ba_plus = zeros(3,1);
+    end
     % if norm(ka_plus) > 0
     %    ka_plus = zeros(3,1);
     % end
-    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
-    P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
+    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus];
+    P_plus = (eye(15,15) - K*H)*P_minus* (eye(15,15)-K * H)' + K*R*K';
     Pq_plus = Pq_minus;
 end
 function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas)
@@ -221,22 +220,20 @@ function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,
     % bg_plus = xk_minus(11:13) + Delta_x(10:12);
     bg_plus = x_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
     ba_plus = x_minus(14:16) + Delta_x(13:15);
-    kg_plus = x_minus(17:19) + Delta_x(16:18);
-    ka_plus = x_minus(20:22) + Delta_x(19:21);
     % if norm(bg_plus) > 1e-3
     %    bg_plus = zeros(3,1);
     % end
     % if norm(kg_plus) > 0
     %    kg_plus = zeros(3,1);
     % end
-    % if norm(ba_plus) > 0
-    %    ba_plus = zeros(3,1);
-    % end
+    if norm(ba_plus) > .2
+       ba_plus = zeros(3,1);
+    end
     % if norm(ka_plus) > 0
     %    ka_plus = zeros(3,1);
     % end
-    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
-    P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
+    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus];
+    P_plus = (eye(15,15) - K*H)*P_minus* (eye(15,15)-K * H)' + K*R*K';
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
 end
 function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt)
@@ -254,8 +251,8 @@ function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat
     % Pq_minus = reshape(X(end,end-35:end)',6,6);
 end
 function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq)
-    x_plus = x(1:22);
-    P_plus = reshape(x(23:end-36),21,21);
+    x_plus = x(1:16);
+    P_plus = reshape(x(17:end-36),15,15);
     Pq_plus = reshape(x(end-35:end),6,6);
     qdot = compute_qdot(x_plus,w_hat); % compute attitude derivative
     pdot = compute_pdot(x_plus); % compute position derivative
@@ -296,7 +293,6 @@ end
 
 function w_hat = compute_what(x,w_meas,we)
 
-sf_g = x(17:19); % get gyro scale factor
 bias_g = x(11:13); % get gyro bias
 q = x(1:4); % get quaternion
 
@@ -304,16 +300,15 @@ D_bn = quaternion2DCM(q)'; % get DCM I2B from quaternion
 
 w_n = compute_wn(x,we);
 
-w_hat = 1./(1 + sf_g).*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
+w_hat = w_meas - bias_g - D_bn*w_n; % Eqn. 7.68b
 
 end
 
 function ahat_n = compute_ahat(x,a_meas)
 
-sf_a = x(20:22); % get accel scale factor
 bias_a = x(14:16); % get accel bias
 
-ahat_b = 1./(1 + sf_a).*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
+ahat_b = a_meas - bias_a; % accel. estimate in body frame (eqn. 7.68j)
 
 D_nb = quaternion2DCM(x(1:4)); % get DCM from body frame to NED frame 
 
@@ -354,8 +349,8 @@ an = ahat_n(1); ae = ahat_n(2); ad = ahat_n(3); % get accel components
 [R_phi, R_lamb, ~, ~] = compute_radii(x); % compute radii
 [ghat,~,~] = compute_g(x); % get gravity estimate
 
-vndot = -((ve/(R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
-vedot = ((ve/(R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
+vndot = -(ve/((R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
+vedot = (ve/((R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
 vddot = -ve^2/(R_lamb + h) - vn^2/(R_phi + h) - 2*we*ve*cosd(phi) + ghat + ad; % Eqn 7.68h
 
 vdot = [vndot; vedot; vddot]; % assemble vdot vector
@@ -416,8 +411,6 @@ end
 
 function F = compute_F(x,a_meas,w_meas,we)
 
-sf_g = x(17:19); % get gyro scale factor
-sf_a = x(20:22); % get accel scale factor
 bias_g = x(11:13); % get gyro bias
 bias_a = x(14:16); % get accel bias
 q = x(1:4); % get quaternion
@@ -425,8 +418,8 @@ q = x(1:4); % get quaternion
 D_nb = quaternion2DCM(q); % get DCM from body frame to NED frame
 D_bn = D_nb'; 
 
-F11_vec = -1./(1 + sf_g).*(w_meas - bias_g);
-F11 = createSkewSymmMat(F11_vec); % Eqn. 7.79a
+F11_vec = -(w_meas - bias_g);
+F11 = skew(F11_vec); % Eqn. 7.79a
 
 dwdp = compute_dwdp(x,we);
 F12 = -D_bn*dwdp; % Eqn. 7.79a
@@ -434,49 +427,43 @@ F12 = -D_bn*dwdp; % Eqn. 7.79a
 dwdv = compute_dwdv(x);
 F13 = -D_bn*dwdv; % Eqn. 7.79b
 
-F14 = diag(-1./(1 + sf_g)); % Eqn. 7.79b
+F14 = -eye(3); % Eqn. 7.79b
 
 Omega = diag(w_meas);
 Bg = diag(bias_g);
-F16 = -(Omega - Bg); % Eqn. 7.79b
 
 F22 = compute_dpdot_dp(x); % Eqn. 7.79c
 F23 = compute_dpdot_dv(x); % Eqn. 7.79c
 
 ahat_n = compute_ahat(x,a_meas);
 ahat_b = D_bn*ahat_n;
-F31 = -D_nb*createSkewSymmMat(ahat_b); % Eqn. 7.79d
+F31 = -D_nb*skew(ahat_b); % Eqn. 7.79d
 
 F32 = compute_dvdot_dp(x,we); % Eqn. 7.79d
 F33 = compute_dvdot_dv(x,we); % Eqn. 7.79d
 
-F35 = -D_nb*diag(1./(1 + sf_a)); % Eqn. 7.79e
-F37 = -D_nb*(diag(a_meas) - diag(bias_a)); % Eqn. 7.79e
+F35 = -D_nb; % Eqn. 7.79e
 
-F = [F11, F12, F13, F14, zeros(3,3), F16, zeros(3,3);... % Eqn 7.78a
-    zeros(3,3), F22, F23, zeros(3,12);...
-    F31, F32, F33, zeros(3,3), F35, zeros(3,3), F37;...
-    zeros(12,21)];
+F = [F11, F12, F13, F14, zeros(3,3);... % Eqn 7.78a
+    zeros(3,3), F22, F23, zeros(3,6);...
+    F31, F32, F33, zeros(3,3), F35;...
+    zeros(6,15)];
 end
 
 function G = compute_G(x)
 
-sf_g = x(17:19); % get gyro scale factor
-sf_a = x(20:22); % get accel scale factor
 q = x(1:4); % get quaternion
 
 D_bn = quaternion2DCM(q)'; % get DCM from quaternion
 D_nb = D_bn'; % get DCM from body frame to NED frame
 
-G11 = -diag(1./(1 + sf_g));
-G33 = -D_nb*diag(1./(1 + sf_a));
+G33 = -D_nb;
 
-G = [G11, zeros(3,9);... % Eqn 7.78b
+G = [-eye(3), zeros(3,9);... % Eqn 7.78b
     zeros(3,12);...
     zeros(3,6), G33, zeros(3,3);...
     zeros(3,3), eye(3), zeros(3,6);...
-    zeros(3,9), eye(3);...
-    zeros(6,12)];
+    zeros(3,9), eye(3)];
 
 end
 
@@ -609,19 +596,10 @@ dvdot_dv = [Z11, Z12, Z13;...
 
 end
 
-function ssMat = createSkewSymmMat(vec)
-%input is a 3x1 vector
-%output is a skew symmetric matrix using that vector
-
-ssMat = [0, -vec(3), vec(2);
-    vec(3), 0, -vec(1);
-    -vec(2), vec(1), 0];
-end
-
 function [x_minus,P_minus,Pq_minus] = integrate(x,P,Pq,dt,qdot,pdot,vdot,Pdot,Pqdot)
 
 % assemble xdot vector
-xdot = [qdot; pdot; vdot; zeros(12,1)];
+xdot = [qdot; pdot; vdot; zeros(6,1)];
 
 x_minus = x + dt*xdot; % use Euler integration
 q_next = x_minus(1:4); % get propagated quaternion
@@ -634,15 +612,5 @@ x_minus(1:4) = q_next/q_norm; % normalize quaternion
 
 P_minus = P + dt*Pdot; % use Euler integration
 Pq_minus = Pq + dt*Pqdot; % use Euler integration
-
-end
-
-function Xi = createXiMat(q)
-% create Xi matrix from scalar-first quaternion
-% used eqn 2.88 from sat ADCS textbook and adapted it for scalar-first quaternion
-
-q1 = q(1); q2 = q(2); q3 = q(3); q4 = q(4);
-
-Xi = [q1, -q4, q3; q4, q1, -q2; -q3, q2, q1; -q2, -q3, -q4];
 
 end

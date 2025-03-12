@@ -148,6 +148,13 @@ ylabel('altitude error (m)')
 title('Altitude Error')
 grid on;
 
+figure
+plot(t,Xplus_history(4:6,:)-sim_data.velI,'LineWidth', 2)
+xlabel('time (s)')
+ylabel('velocity error (m/s)')
+title('Velocity Error')
+grid on;
+
 %% Helper functions
 function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas)
     % STEP 2: KALMAN GAIN
@@ -356,8 +363,8 @@ an = ahat_n(1); ae = ahat_n(2); ad = ahat_n(3); % get accel components
 [R_phi, R_lamb, ~, ~] = compute_radii(x); % compute radii
 [ghat,~,~] = compute_g(x); % get gravity estimate
 
-vndot = -((ve/(R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
-vedot = ((ve/(R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
+vndot = -(ve/((R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
+vedot = (ve/((R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
 vddot = -ve^2/(R_lamb + h) - vn^2/(R_phi + h) - 2*we*ve*cosd(phi) + ghat + ad; % Eqn 7.68h
 
 vdot = [vndot; vedot; vddot]; % assemble vdot vector
@@ -393,23 +400,23 @@ function [R_phi, R_lamb, dR_phi_dphi, dR_lamb_dphi] = compute_radii(x)
 % WGS84 model parameters (source: https://en.wikipedia.org/wiki/World_Geodetic_System)
 a = 6378137; % semi-major axis [m]
 b = 6356752.31425; % semi-minor axis [m]
-e = sqrt(1 - b^2/a^2); % eccentricity
+e2 = 1 - (b/a)^2; % eccentricity
 
 phi = x(5); % get latitude
 
-num1 = a*(1-e^2);
-den1 = (1-e^2*sind(phi)^2)^(3/2);
+num1 = a*(1-e2);
+den1 = (1-e2*sind(phi)^2)^(3/2);
 
-den2 = (1-e^2*sind(phi)^2)^(1/2);
+den2 = (1-e2*sind(phi)^2)^(1/2);
 
 R_phi = num1/den1; % Eqn 7.69a
 R_lamb = a/den2; % Eqn 7.69b
 
-num3 = 3*a*(1-e^2)*e^2*sind(phi)*cosd(phi);
-den3 = (1-e^2*sind(phi)^2)^(5/2);
+num3 = 3*a*(1-e2)*e2*sind(phi)*cosd(phi);
+den3 = (1-e2*sind(phi)^2)^(5/2);
 
-num4 = a*e^2*sind(phi)*cosd(phi);
-den4 = (1-e^2*sind(phi)^2)^(3/2);
+num4 = a*e2*sind(phi)*cosd(phi);
+den4 = (1-e2*sind(phi)^2)^(3/2);
 
 dR_lamb_dphi = num4/den4; % Eqn 7.75a
 dR_phi_dphi = num3/den3; % Eqn 7.75b

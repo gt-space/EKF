@@ -81,6 +81,7 @@ sim_data.Sa = Sa; % "true" scaling factor
 sim_data.Sg = Sg;
 sim_data.LLA0 = lla0; % "true" NED position
 sim_data.NED = posI; % "true" NED position
+sim_data.velI = double(simData.vel);
 sim_data.q = q; % "true" attitude
 sim_data.GPS = GPS; % GPS measurment
 sim_data.magB = magB; % magnetometer measurement
