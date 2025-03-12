@@ -13,7 +13,7 @@ t = sim_data.time;
 N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
-% we = 0;
+we = 0;
 % DEFINE PARAMETERS
 IMU_freq = 100; % save sample rate variable
 dt = 1/IMU_freq; % get time step
@@ -69,7 +69,7 @@ asf_unc0 = 1e-4; % accel scale factor uncertainty [rad/s]
 % create initial covariance matrix
 P0 = diag([att_unc0*ones(1,3), pos_unc0*ones(1,3), vel_unc0*ones(1,3), gbias_unc0*ones(1,3),...
     abias_unc0*ones(1,3),gsf_unc0*ones(1,3), asf_unc0*ones(1,3)]);
-Pq0 = diag([att_unc0*ones(1,3),abias_unc0*ones(1,3)]);
+Pq0 = diag([att_unc0*ones(1,3),gbias_unc0*ones(1,3)]);
 % set up initial conditions for the filter
 x_plus = x0;
 P_plus = P0;
@@ -87,6 +87,9 @@ Xplus_history = zeros(n,N);
     lla_meas = sens.LLA_meas;
     %}
 for i = 1 : N
+    % if i == sim_data.apogee_idx + 3000
+    %     x_plus(11:13) = zeros(3,1);
+    % end
     % iterates through each point
     a_meas = acc(:,i);
     w_meas = omega(:,i);
@@ -160,11 +163,15 @@ function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,mag
     % q_plus = delta_q ⊗ q_minus
     q_plus = qmult(dq,q_minus);
     bg_plus = x_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
+    % if norm(bg_plus) > 1e-3
+    %    bg_plus = zeros(3,1);
+    % end
     x_plus = x_minus;
     x_plus(1:4) = q_plus;
     x_plus(11:13) = bg_plus;
     P_plus = P_minus;
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
+
 end
 
 function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas)
@@ -183,15 +190,15 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(kg_plus) > 0
+    %    kg_plus = zeros(3,1);
+    % end
     % if norm(ba_plus) > 0
     %    ba_plus = zeros(3,1);
     % end
     % if norm(ka_plus) > 0
     %    ka_plus = zeros(3,1);
     % end
-    if norm(kg_plus) > 0
-       kg_plus = zeros(3,1);
-    end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = Pq_minus;
@@ -218,15 +225,18 @@ function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(bg_plus) > 1e-3
+    %    bg_plus = zeros(3,1);
+    % end
+    % if norm(kg_plus) > 0
+    %    kg_plus = zeros(3,1);
+    % end
     % if norm(ba_plus) > 0
     %    ba_plus = zeros(3,1);
     % end
     % if norm(ka_plus) > 0
     %    ka_plus = zeros(3,1);
     % end
-    if norm(kg_plus) > 0
-       kg_plus = zeros(3,1);
-    end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
@@ -296,7 +306,7 @@ D_bn = quaternion2DCM(q)'; % get DCM I2B from quaternion
 
 w_n = compute_wn(x,we);
 
-w_hat = 1./(1 - sf_g).*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
+w_hat = 1./(1 + sf_g).*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
 
 end
 
@@ -305,7 +315,7 @@ function ahat_n = compute_ahat(x,a_meas)
 sf_a = x(20:22); % get accel scale factor
 bias_a = x(14:16); % get accel bias
 
-ahat_b = 1./(1 - sf_a).*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
+ahat_b = 1./(1 + sf_a).*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
 
 D_nb = quaternion2DCM(x(1:4)); % get DCM from body frame to NED frame 
 
@@ -416,10 +426,8 @@ q = x(1:4); % get quaternion
 
 D_nb = quaternion2DCM(q); % get DCM from body frame to NED frame
 D_bn = D_nb'; 
-sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
-sf_mat_a = diag(sf_a); % create scale factor matrix for accel
 
-F11_vec = -(eye(3) - sf_mat_g)*(w_meas - bias_g);
+F11_vec = -1./(1 + sf_g).*(w_meas - bias_g);
 F11 = createSkewSymmMat(F11_vec); % Eqn. 7.79a
 
 dwdp = compute_dwdp(x,we);
@@ -428,7 +436,7 @@ F12 = -D_bn*dwdp; % Eqn. 7.79a
 dwdv = compute_dwdv(x);
 F13 = -D_bn*dwdv; % Eqn. 7.79b
 
-F14 = -(eye(3) - sf_mat_g); % Eqn. 7.79b
+F14 = diag(-1./(1 + sf_g)); % Eqn. 7.79b
 
 Omega = diag(w_meas);
 Bg = diag(bias_g);
@@ -444,7 +452,7 @@ F31 = -D_nb*createSkewSymmMat(ahat_b); % Eqn. 7.79d
 F32 = compute_dvdot_dp(x,we); % Eqn. 7.79d
 F33 = compute_dvdot_dv(x,we); % Eqn. 7.79d
 
-F35 = -D_nb*(eye(3) - sf_mat_a); % Eqn. 7.79e
+F35 = -D_nb*diag(1./(1 + sf_a)); % Eqn. 7.79e
 F37 = -D_nb*(diag(a_meas) - diag(bias_a)); % Eqn. 7.79e
 
 F = [F11, F12, F13, F14, zeros(3,3), F16, zeros(3,3);... % Eqn 7.78a
@@ -461,11 +469,9 @@ q = x(1:4); % get quaternion
 
 D_bn = quaternion2DCM(q)'; % get DCM from quaternion
 D_nb = D_bn'; % get DCM from body frame to NED frame
-sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
-sf_mat_a = diag(sf_a); % create scale factor matrix for accel
 
-G11 = -(eye(3) - sf_mat_g);
-G33 = -D_nb*(eye(3) - sf_mat_a);
+G11 = -diag(1./(1 + sf_g));
+G33 = -D_nb*diag(1./(1 + sf_a));
 
 G = [G11, zeros(3,9);... % Eqn 7.78b
     zeros(3,12);...

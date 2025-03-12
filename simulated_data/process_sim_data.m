@@ -1,6 +1,7 @@
 clear;
 load("raw_flight_sim_data.mat");
 % apogee_index = 9447;
+apogee_index = find(simData.vel(3,:)>0,1);
 final_index = 104932; % 100 secs, covering apogee
 % final_index = 50000; % 100 secs, covering apogee
 posI = double(simData.pos(:,1:final_index)); % NED
@@ -84,4 +85,5 @@ sim_data.q = q; % "true" attitude
 sim_data.GPS = GPS; % GPS measurment
 sim_data.magB = magB; % magnetometer measurement
 sim_data.magI = magI;
+sim_data.apogee_idx = apogee_index;
 save("sim_data_4_EKF_testing.mat","sim_data");
