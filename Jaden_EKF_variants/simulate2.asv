@@ -1,0 +1,14 @@
+function [time,true_state,position_measurements] = simulate2(f,x0,uB,tspan,h,R)
+% create simulated true trajectory and noisy measurements
+n = size(x0,1);
+m = size(R,1);
+uB_func = @(t) t*uB;
+[time,true_state] = ode45(@(t,x)f(t,x,t*uB),tspan,x0);
+true_state = true_state';
+N = size(true_state,2);
+position_measurements = zeros(m,N);
+for i = 1:N
+    position_measurements(:,i) = h(true_state(1:4,i)) + R*randn(m,1);
+end
+
+end

@@ -1,6 +1,6 @@
 
 % CODE FOR VALIDATING ALGORITHIM WITH SAME SAMPLE RATE FOR IMU & GPS
-close all; clear; clc;
+close all; clear;
 
 load('sim_data_4_EKF_testing.mat');
 acc = sim_data.acc;
@@ -13,7 +13,7 @@ t = sim_data.time;
 N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
-% we = 0;
+we = 0; % TODO only for current sim data
 % DEFINE PARAMETERS
 IMU_freq = 100; % save sample rate variable
 dt = 1/IMU_freq; % get time step
@@ -37,16 +37,16 @@ Rb = 1e-8; % barometer noise variance
 % nu_av_mat = 1.6867*10^(-4)*eye(3); % using m/s^2
 % nu_au_mat = 1.3058*10^(-6)*eye(3); % using m/s^2
 % MODIFY TO MODEL GYRO/ACCEL NOISE
-nu_gv_mat = deg2rad(12e-3)*sqrt(IMU_freq)*eye(3); % using rad/s
-nu_gu_mat = 1/IMU_freq*deg2rad(3/3600)*eye(3); % using rad/s
-nu_av_mat = (200e-6*9.81)*sqrt(IMU_freq)*eye(3); % using m/s^2
-nu_au_mat = 1/IMU_freq*40e-6 *9.8*eye(3); % using m/s^2
+nu_gv_mat = deg2rad(12e-3)^1*eye(3); % using rad/s
+nu_gu_mat = deg2rad(3/3600)^1*eye(3); % using rad/s
+nu_av_mat = (200e-6*9.81)^1*eye(3); % using m/s^2
+nu_au_mat = (40e-6 *9.8)^1*eye(3); % using m/s^2
 
-Q = [nu_gv_mat, zeros(3,9);...
+Q = dt*[nu_gv_mat, zeros(3,9);...
     zeros(3,3), nu_gu_mat, zeros(3,6);...
     zeros(3,6), nu_av_mat, zeros(3,3);...
     zeros(3,9), nu_au_mat];
-Qq = [nu_gv_mat zeros(3,3);
+Qq = dt*[nu_gv_mat zeros(3,3);
       zeros(3,3) nu_gu_mat];
 
 % DEFINE INITIAL CONDITIONS %
@@ -69,7 +69,7 @@ asf_unc0 = 1e-4; % accel scale factor uncertainty [rad/s]
 % create initial covariance matrix
 P0 = diag([att_unc0*ones(1,3), pos_unc0*ones(1,3), vel_unc0*ones(1,3), gbias_unc0*ones(1,3),...
     abias_unc0*ones(1,3),gsf_unc0*ones(1,3), asf_unc0*ones(1,3)]);
-Pq0 = diag([att_unc0*ones(1,3),abias_unc0*ones(1,3)]);
+Pq0 = diag([att_unc0*ones(1,3),gbias_unc0*ones(1,3)]);
 % set up initial conditions for the filter
 x_plus = x0;
 P_plus = P0;
@@ -86,29 +86,46 @@ Xplus_history = zeros(n,N);
     w_meas = sens.omega_meas;
     lla_meas = sens.LLA_meas;
     %}
+last_GPS_time = 0;
+last_mag_time = 0;
+
 for i = 1 : N
+    % if i == sim_data.apogee_idx + 3000
+    %     x_plus(11:13) = zeros(3,1);
+    % end
     % iterates through each point
     a_meas = acc(:,i);
     w_meas = omega(:,i);
     
     w_hat = compute_what(x_plus,w_meas,we); % compute gyro estimate (accounting for sf & bias)
     ahat_n = compute_ahat(x_plus,a_meas); % compute accel estimate (accounting for sf, bias & frame transformation)
-    
+    Dt_GPS = dt*(i-1) - last_GPS_time;
+    Dt_mag = dt*(i-1) - last_mag_time;
     [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt);
 
     lla_meas = GPS(:,i);
     mag_meas = magB(:,i);
     % baro_meas = baro(i);
     if ~(sum(isnan(lla_meas)) || sum(isnan(mag_meas))) % both available
+        last_GPS_time = dt * (i-1);
+        last_mag_time = dt * (i-1);
         [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas);
     elseif ~sum(isnan(lla_meas))
+        last_GPS_time = dt * (i-1);
         [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas);
     elseif ~ sum(isnan(mag_meas))
+        last_mag_time = dt * (i-1);
         [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas);
     else
         x_plus = x_minus;
         P_plus = P_minus;
         Pq_plus = Pq_minus;
+    end
+    if i > 18450 && i < 23050
+        x_plus(8:10) = x_minus(8:10); % not to mess up velocity
+    end
+    if Dt_GPS > 10 % lost GPS for more than 10 secs (arbitrary)
+        x_plus(8:10) = x_minus(8:10); % not to mess up velocity
     end
     Xplus_history(:, i) = x_plus; % saves the value from xplus 1X22 vector for each dt
 end
@@ -145,6 +162,13 @@ ylabel('altitude error (m)')
 title('Altitude Error')
 grid on;
 
+figure
+plot(t,Xplus_history(8:10,:)-sim_data.velI,'LineWidth', 2)
+xlabel('time (s)')
+ylabel('velocity error (m/s)')
+title('Velocity Error')
+grid on;
+
 %% Helper functions
 function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas)
     % STEP 2: KALMAN GAIN
@@ -160,11 +184,15 @@ function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,mag
     % q_plus = delta_q ⊗ q_minus
     q_plus = qmult(dq,q_minus);
     bg_plus = x_minus(11:13) - q2v(sandwich(qconj(q_plus),[0;cbg]));
+    % if norm(bg_plus) > 1e-3
+    %    bg_plus = zeros(3,1);
+    % end
     x_plus = x_minus;
     x_plus(1:4) = q_plus;
     x_plus(11:13) = bg_plus;
     P_plus = P_minus;
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
+
 end
 
 function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas)
@@ -183,15 +211,15 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(kg_plus) > 0
+    %    kg_plus = zeros(3,1);
+    % end
     % if norm(ba_plus) > 0
     %    ba_plus = zeros(3,1);
     % end
     % if norm(ka_plus) > 0
     %    ka_plus = zeros(3,1);
     % end
-    if norm(kg_plus) > 0
-       kg_plus = zeros(3,1);
-    end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = Pq_minus;
@@ -218,15 +246,18 @@ function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(bg_plus) > 1e-3
+    %    bg_plus = zeros(3,1);
+    % end
+    % if norm(kg_plus) > 0
+    %    kg_plus = zeros(3,1);
+    % end
     % if norm(ba_plus) > 0
     %    ba_plus = zeros(3,1);
     % end
     % if norm(ka_plus) > 0
     %    ka_plus = zeros(3,1);
     % end
-    if norm(kg_plus) > 0
-       kg_plus = zeros(3,1);
-    end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
@@ -296,7 +327,7 @@ D_bn = quaternion2DCM(q)'; % get DCM I2B from quaternion
 
 w_n = compute_wn(x,we);
 
-w_hat = 1./(1 - sf_g).*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
+w_hat = 1./(1 + sf_g).*(w_meas - bias_g) - D_bn*w_n; % Eqn. 7.68b
 
 end
 
@@ -305,7 +336,7 @@ function ahat_n = compute_ahat(x,a_meas)
 sf_a = x(20:22); % get accel scale factor
 bias_a = x(14:16); % get accel bias
 
-ahat_b = 1./(1 - sf_a).*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
+ahat_b = 1./(1 + sf_a).*(a_meas - bias_a); % accel. estimate in body frame (eqn. 7.68j)
 
 D_nb = quaternion2DCM(x(1:4)); % get DCM from body frame to NED frame 
 
@@ -346,9 +377,10 @@ an = ahat_n(1); ae = ahat_n(2); ad = ahat_n(3); % get accel components
 [R_phi, R_lamb, ~, ~] = compute_radii(x); % compute radii
 [ghat,~,~] = compute_g(x); % get gravity estimate
 
-vndot = -((ve/(R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
-vedot = ((ve/(R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
+vndot = -(ve/((R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
+vedot = (ve/((R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
 vddot = -ve^2/(R_lamb + h) - vn^2/(R_phi + h) - 2*we*ve*cosd(phi) + ghat + ad; % Eqn 7.68h
+% vddot = -ve^2/(R_lamb + h) - vn^2/(R_phi + h) - 2*we*ve*cosd(phi) + ad; % Eqn 7.68h
 
 vdot = [vndot; vedot; vddot]; % assemble vdot vector
 end
@@ -383,23 +415,23 @@ function [R_phi, R_lamb, dR_phi_dphi, dR_lamb_dphi] = compute_radii(x)
 % WGS84 model parameters (source: https://en.wikipedia.org/wiki/World_Geodetic_System)
 a = 6378137; % semi-major axis [m]
 b = 6356752.31425; % semi-minor axis [m]
-e = sqrt(1 - b^2/a^2); % eccentricity
+e2 = 1 - (b/a)^2; % eccentricity
 
 phi = x(5); % get latitude
 
-num1 = a*(1-e^2);
-den1 = (1-e^2*sind(phi)^2)^(3/2);
+num1 = a*(1-e2);
+den1 = (1-e2*sind(phi)^2)^(3/2);
 
-den2 = (1-e^2*sind(phi)^2)^(1/2);
+den2 = (1-e2*sind(phi)^2)^(1/2);
 
 R_phi = num1/den1; % Eqn 7.69a
 R_lamb = a/den2; % Eqn 7.69b
 
-num3 = 3*a*(1-e^2)*e^2*sind(phi)*cosd(phi);
-den3 = (1-e^2*sind(phi)^2)^(5/2);
+num3 = 3*a*(1-e2)*e2*sind(phi)*cosd(phi);
+den3 = (1-e2*sind(phi)^2)^(5/2);
 
-num4 = a*e^2*sind(phi)*cosd(phi);
-den4 = (1-e^2*sind(phi)^2)^(3/2);
+num4 = a*e2*sind(phi)*cosd(phi);
+den4 = (1-e2*sind(phi)^2)^(3/2);
 
 dR_lamb_dphi = num4/den4; % Eqn 7.75a
 dR_phi_dphi = num3/den3; % Eqn 7.75b
@@ -416,10 +448,8 @@ q = x(1:4); % get quaternion
 
 D_nb = quaternion2DCM(q); % get DCM from body frame to NED frame
 D_bn = D_nb'; 
-sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
-sf_mat_a = diag(sf_a); % create scale factor matrix for accel
 
-F11_vec = -(eye(3) - sf_mat_g)*(w_meas - bias_g);
+F11_vec = -1./(1 + sf_g).*(w_meas - bias_g);
 F11 = createSkewSymmMat(F11_vec); % Eqn. 7.79a
 
 dwdp = compute_dwdp(x,we);
@@ -428,7 +458,7 @@ F12 = -D_bn*dwdp; % Eqn. 7.79a
 dwdv = compute_dwdv(x);
 F13 = -D_bn*dwdv; % Eqn. 7.79b
 
-F14 = -(eye(3) - sf_mat_g); % Eqn. 7.79b
+F14 = diag(-1./(1 + sf_g)); % Eqn. 7.79b
 
 Omega = diag(w_meas);
 Bg = diag(bias_g);
@@ -444,7 +474,7 @@ F31 = -D_nb*createSkewSymmMat(ahat_b); % Eqn. 7.79d
 F32 = compute_dvdot_dp(x,we); % Eqn. 7.79d
 F33 = compute_dvdot_dv(x,we); % Eqn. 7.79d
 
-F35 = -D_nb*(eye(3) - sf_mat_a); % Eqn. 7.79e
+F35 = -D_nb*diag(1./(1 + sf_a)); % Eqn. 7.79e
 F37 = -D_nb*(diag(a_meas) - diag(bias_a)); % Eqn. 7.79e
 
 F = [F11, F12, F13, F14, zeros(3,3), F16, zeros(3,3);... % Eqn 7.78a
@@ -461,11 +491,9 @@ q = x(1:4); % get quaternion
 
 D_bn = quaternion2DCM(q)'; % get DCM from quaternion
 D_nb = D_bn'; % get DCM from body frame to NED frame
-sf_mat_g = diag(sf_g); % create scale factor matrix for gyro
-sf_mat_a = diag(sf_a); % create scale factor matrix for accel
 
-G11 = -(eye(3) - sf_mat_g);
-G33 = -D_nb*(eye(3) - sf_mat_a);
+G11 = -diag(1./(1 + sf_g));
+G33 = -D_nb*diag(1./(1 + sf_a));
 
 G = [G11, zeros(3,9);... % Eqn 7.78b
     zeros(3,12);...
