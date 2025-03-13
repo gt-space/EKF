@@ -1,6 +1,6 @@
 
 % CODE FOR VALIDATING ALGORITHIM WITH SAME SAMPLE RATE FOR IMU & GPS
-close all; clear; clc;
+close all; clear;
 
 load('sim_data_4_EKF_testing.mat');
 acc = sim_data.acc;
@@ -13,7 +13,7 @@ t = sim_data.time;
 N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
-we = 0;
+we = 0; % TODO only for current sim data
 % DEFINE PARAMETERS
 IMU_freq = 100; % save sample rate variable
 dt = 1/IMU_freq; % get time step
@@ -37,16 +37,16 @@ Rb = 1e-8; % barometer noise variance
 % nu_av_mat = 1.6867*10^(-4)*eye(3); % using m/s^2
 % nu_au_mat = 1.3058*10^(-6)*eye(3); % using m/s^2
 % MODIFY TO MODEL GYRO/ACCEL NOISE
-nu_gv_mat = deg2rad(12e-3)*sqrt(IMU_freq)*eye(3); % using rad/s
-nu_gu_mat = 1/IMU_freq*deg2rad(3/3600)*eye(3); % using rad/s
-nu_av_mat = (200e-6*9.81)*sqrt(IMU_freq)*eye(3); % using m/s^2
-nu_au_mat = 1/IMU_freq*40e-6 *9.8*eye(3); % using m/s^2
+nu_gv_mat = deg2rad(12e-3)^1*eye(3); % using rad/s
+nu_gu_mat = deg2rad(3/3600)^1*eye(3); % using rad/s
+nu_av_mat = (200e-6*9.81)^1*eye(3); % using m/s^2
+nu_au_mat = (40e-6 *9.8)^1*eye(3); % using m/s^2
 
-Q = [nu_gv_mat, zeros(3,9);...
+Q = dt*[nu_gv_mat, zeros(3,9);...
     zeros(3,3), nu_gu_mat, zeros(3,6);...
     zeros(3,6), nu_av_mat, zeros(3,3);...
     zeros(3,9), nu_au_mat];
-Qq = [nu_gv_mat zeros(3,3);
+Qq = dt*[nu_gv_mat zeros(3,3);
       zeros(3,3) nu_gu_mat];
 
 % DEFINE INITIAL CONDITIONS %
@@ -86,6 +86,9 @@ Xplus_history = zeros(n,N);
     w_meas = sens.omega_meas;
     lla_meas = sens.LLA_meas;
     %}
+last_GPS_time = 0;
+last_mag_time = 0;
+
 for i = 1 : N
     % if i == sim_data.apogee_idx + 3000
     %     x_plus(11:13) = zeros(3,1);
@@ -96,22 +99,33 @@ for i = 1 : N
     
     w_hat = compute_what(x_plus,w_meas,we); % compute gyro estimate (accounting for sf & bias)
     ahat_n = compute_ahat(x_plus,a_meas); % compute accel estimate (accounting for sf, bias & frame transformation)
-    
+    Dt_GPS = dt*(i-1) - last_GPS_time;
+    Dt_mag = dt*(i-1) - last_mag_time;
     [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt);
 
     lla_meas = GPS(:,i);
     mag_meas = magB(:,i);
     % baro_meas = baro(i);
     if ~(sum(isnan(lla_meas)) || sum(isnan(mag_meas))) % both available
+        last_GPS_time = dt * (i-1);
+        last_mag_time = dt * (i-1);
         [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas);
     elseif ~sum(isnan(lla_meas))
+        last_GPS_time = dt * (i-1);
         [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas);
     elseif ~ sum(isnan(mag_meas))
+        last_mag_time = dt * (i-1);
         [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas);
     else
         x_plus = x_minus;
         P_plus = P_minus;
         Pq_plus = Pq_minus;
+    end
+    if i > 18450 && i < 23050
+        x_plus(8:10) = x_minus(8:10); % not to mess up velocity
+    end
+    if Dt_GPS > 10 % lost GPS for more than 10 secs (arbitrary)
+        x_plus(8:10) = x_minus(8:10); % not to mess up velocity
     end
     Xplus_history(:, i) = x_plus; % saves the value from xplus 1X22 vector for each dt
 end
@@ -149,7 +163,7 @@ title('Altitude Error')
 grid on;
 
 figure
-plot(t,Xplus_history(4:6,:)-sim_data.velI,'LineWidth', 2)
+plot(t,Xplus_history(8:10,:)-sim_data.velI,'LineWidth', 2)
 xlabel('time (s)')
 ylabel('velocity error (m/s)')
 title('Velocity Error')
@@ -366,6 +380,7 @@ an = ahat_n(1); ae = ahat_n(2); ad = ahat_n(3); % get accel components
 vndot = -(ve/((R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
 vedot = (ve/((R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
 vddot = -ve^2/(R_lamb + h) - vn^2/(R_phi + h) - 2*we*ve*cosd(phi) + ghat + ad; % Eqn 7.68h
+% vddot = -ve^2/(R_lamb + h) - vn^2/(R_phi + h) - 2*we*ve*cosd(phi) + ad; % Eqn 7.68h
 
 vdot = [vndot; vedot; vddot]; % assemble vdot vector
 end
