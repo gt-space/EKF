@@ -1,5 +1,6 @@
 % uses a reference pressure p_0 and a 15th order best-fit polynomial (stored as an array of 16 coefficients) to estimate atmosphere properties at some altitude
 % 0th order coefficient first, 15th order last
+% p_0 should be in pascal
 % turns an altitude, h (meters), into a pressure, p
 function p = pressure_function(h, p_0, a)
     p = p_0 * 10^(a * [1.0; h; h^2; h^3; h^4; h^5; h^6; h^7; h^8; h^9; h^10; h^11; h^12; h^13; h^14; h^15]);
