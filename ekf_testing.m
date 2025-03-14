@@ -9,6 +9,7 @@ ned = sim_data.NED;
 GPS = sim_data.GPS;
 magB = sim_data.magB;
 magI = sim_data.magI;
+baro = sim_data.baro;
 t = sim_data.time;
 N = length(t);
 % DEFINE CONSTANTS %
@@ -19,16 +20,35 @@ IMU_freq = 100; % save sample rate variable
 dt = 1/IMU_freq; % get time step
 GPS_freq = 20;
 mag_freq = 100;
+baro_freq = 1000;
 
 % define H
 H = zeros(3,21); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
-Hb = 0 ; % barometer measurement function Jacobian
+p0 = 102715.47296217596;
+a = [-0.004366921037228173;
+   -5.0964993627948606 * 10^-5;
+   1.6319216411827967 * 10^-9;
+   -6.053135304413484 * 10^-13;
+   6.911049045104908 * 10^-17;
+   -4.516216131249696 * 10^-21;
+   1.90623861182507 * 10^-25;
+   -5.457995055935324 * 10^-30;
+   1.0906415917824724 * 10^-34;
+   -1.5456197431929747 * 10^-39;
+   1.5609417634668778 * 10^-44;
+   -1.1149608634620734 * 10^-49;
+   5.500087730582754 * 10^-55;
+   -1.7817554862391996 * 10^-60;
+   3.409963106133886 * 10^-66;
+   -2.9213421378235885 * 10^-72];
+hb = @(x) pressure_function(x(7),p0,a);
+Hb = @(x) [zeros(1,5) pressure_derivative(x(7),p0,a) zeros(1,15)]; % barometer measurement function Jacobian
 Hq = [skew(magI) zeros(3,3)]; % magnetometer measurement Jacobian and gyro bias
 % define R
 
 R = diag([1.35e-5;1.65e-5;2]); % MODIFY TO MODEL GNSS NOISE
 Rq = diag([3.2e-7 4.1e-7 3.2e-7]);
-Rb = 1e-8; % barometer noise variance
+Rb = 2.5e-3; % barometer noise variance
 
 
 % define Q ( eqn 7.76b)
@@ -105,7 +125,8 @@ for i = 1 : N
 
     lla_meas = GPS(:,i);
     mag_meas = magB(:,i);
-    % baro_meas = baro(i);
+    press_meas = baro(i);
+
     if ~(sum(isnan(lla_meas)) || sum(isnan(mag_meas))) % both available
         last_GPS_time = dt * (i-1);
         last_mag_time = dt * (i-1);
@@ -121,12 +142,16 @@ for i = 1 : N
         P_plus = P_minus;
         Pq_plus = Pq_minus;
     end
-    if i > 18450 && i < 23050
+    if i > 28060 && i < 31050
         x_plus(8:10) = x_minus(8:10); % not to mess up velocity
     end
-    if Dt_GPS > 10 % lost GPS for more than 10 secs (arbitrary)
-        x_plus(8:10) = x_minus(8:10); % not to mess up velocity
+    % if Dt_GPS > 10 % lost GPS for more than 10 secs (arbitrary)
+    %     x_plus(8:10) = x_minus(8:10); % not to mess up velocity
+    % end
+    if ~ sum(isnan(press_meas))
+        [x_plus,P_plus,Pq_plus] = update_baro(x_plus,P_plus,Pq_plus,Hb,Rb,press_meas,hb);
     end
+
     Xplus_history(:, i) = x_plus; % saves the value from xplus 1X22 vector for each dt
 end
 
@@ -167,9 +192,39 @@ plot(t,Xplus_history(8:10,:)-sim_data.velI,'LineWidth', 2)
 xlabel('time (s)')
 ylabel('velocity error (m/s)')
 title('Velocity Error')
+legend('v1','v2','v3')
 grid on;
 
 %% Helper functions
+function [x_plus,P_plus,Pq_plus] = update_baro(x_minus,P_minus,Pq_minus,Hb_func,Rb,press_meas,hb)
+    % STEP 2: KALMAN GAIN
+    Hb = Hb_func(x_minus);
+    K = P_minus*Hb'/(Hb*P_minus*Hb' + Rb);
+
+    % STEP 3: MEAS. UPDATE
+    q_minus = x_minus(1:4);
+    Delta_x = K*(press_meas - hb(x_minus)); % Step 3.1: compute DeltaX vector
+    % q_plus = delta_q ⊗ q_minus
+    q_plus = q_minus;
+    p_plus = x_minus(5:7) + Delta_x(4:6);
+    v_plus = x_minus(8:10) + Delta_x(7:9);
+    bg_plus = x_minus(11:13);
+    ba_plus = x_minus(14:16) + Delta_x(13:15);
+    kg_plus = x_minus(17:19) + Delta_x(16:18);
+    ka_plus = x_minus(20:22) + Delta_x(19:21);
+    % if norm(kg_plus) > 0
+    %    kg_plus = zeros(3,1);
+    % end
+    % if norm(ba_plus) > 0
+    %    ba_plus = zeros(3,1);
+    % end
+    % if norm(ka_plus) > 0
+    %    ka_plus = zeros(3,1);
+    % end
+    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
+    P_plus = (eye(21,21) - K*Hb)*P_minus* (eye(21,21)-K * Hb)' + K*Rb*K';
+    Pq_plus = Pq_minus;
+end
 function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas)
     % STEP 2: KALMAN GAIN
     Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
@@ -202,12 +257,13 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
     % STEP 3: MEAS. UPDATE
     q_minus = x_minus(1:4);
     Delta_x = K*(lla_meas - x_minus(5:7)); % Step 3.1: compute DeltaX vector
-    dq = quaternion_exp(-Delta_x(1:3)/2);
+
+    dq = quaternion_exp(Delta_x(1:3)/2);
     % q_plus = delta_q ⊗ q_minus
     q_plus = qmult(dq,q_minus);
     p_plus = x_minus(5:7) + Delta_x(4:6);
     v_plus = x_minus(8:10) + Delta_x(7:9);
-    bg_plus = xk_minus(11:13) + Delta_x(10:12);
+    bg_plus = x_minus(11:13) + Delta_x(10:12);
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
