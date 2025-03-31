@@ -1,11 +1,12 @@
 % converts radius vector in the ECEF frame to geodetic coordinates
+% angles are output in degrees
 % sources:
 % Jekeli, Christopher (August, 2016). Geometric Reference Systems in Geodesy. Ohio State University.
-% data from TOPEX/Poseidon (1992) following IERS recommendations
+% uses WGS84 reference ellipsoid
 % algorithm from Fukushima, Toshio (December, 1999). Fast transform from geocentric to geodetic coordinates. Journal of Geodesy. National Astronomical Observatory.
 function geo_lla = ecef2lla(r)
-    a = 6378136.3; % semi-major axis in m
-    f = (298.257)^-1; % flattening
+    a = 6378137; % semi-major axis in m
+    f = 1 / 298.257223563; % flattening
     b = a * (1.0 - f); % semi-minor axis
     e = sqrt(1.0 - (b^2 / a^2)); % first eccentricity
     epsilon = 10^-12; % allowable error in the Newton-Raphson solver
@@ -64,16 +65,11 @@ function geo_lla = ecef2lla(r)
                 break
             end
         end
-        if r(3) > 0
-            phi = atan2(1.0 - t^2, 2.0 * e_prime * t);
-        else
-            phi = -atan2(1.0 - t^2, 2.0 * e_prime * t);
-        end
-        h_geo = ((2.0 * p * e_prime * t) + (z_norm * (1.0 - t^2)) - (a * e_prime * (1.0 + t^2))) / (sqrt((1.0 + t^2)^2 - (4.0 * e^2 * t^2)));
+        phi = atan2(1.0 - t^2, 2.0 * e_prime * t) * sign(z);
+        h_geo = ((2.0 * p * e_prime * t) + (z_norm * (1.0 - t^2)) - (a * e_prime * (1.0 + t^2))) / sqrt((1.0 + t^2)^2 - (4.0 * e^2 * t^2));
         lambda = atan2(y, x);
-        if lambda < 0
-            lambda = 2.0 * pi + lambda;
-        end
     end
+    phi = phi * (180 / pi);
+    lambda = lambda * (180 / pi);
     geo_lla = [phi; lambda; h_geo];
 end
