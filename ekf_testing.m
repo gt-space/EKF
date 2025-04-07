@@ -41,6 +41,7 @@ a = [-0.004366921037228173;
    -1.7817554862391996 * 10^-60;
    3.409963106133886 * 10^-66;
    -2.9213421378235885 * 10^-72];
+
 hb = @(x) pressure_function(x(7),p0,a);
 Hb = @(x) [zeros(1,5) pressure_derivative(x(7),p0,a) zeros(1,15)]; % barometer measurement function Jacobian
 Hq = [skew(magI) zeros(3,3)]; % magnetometer measurement Jacobian and gyro bias
@@ -73,7 +74,7 @@ Qq = dt*[nu_gv_mat zeros(3,3);
 % lla0 = [30.9275; -81.51472222222; 45];
 lla0 = sim_data.LLA0;
 q0 = [0.707106781186548; 0; 0.707106781186547; 0];
-
+q0 = [0.61902428;0.34681967;0.61068183;-0.35155755]; % TODO change this
 % attitude, pos, vel, g bias, a bias, g sf, a sf
 x0 = [q0; lla0; zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1)];
 n = size(x0,1);
@@ -188,7 +189,7 @@ title('Altitude Error')
 grid on;
 
 figure
-plot(t,Xplus_history(8:10,:)-sim_data.velI,'LineWidth', 2)
+plot(t,Xplus_history(8:10,:)-sim_data.velI(:,1:length(t)),'LineWidth', 2)
 xlabel('time (s)')
 ylabel('velocity error (m/s)')
 title('Velocity Error')
@@ -212,15 +213,7 @@ function [x_plus,P_plus,Pq_plus] = update_baro(x_minus,P_minus,Pq_minus,Hb_func,
     ba_plus = x_minus(14:16) + Delta_x(13:15);
     kg_plus = x_minus(17:19) + Delta_x(16:18);
     ka_plus = x_minus(20:22) + Delta_x(19:21);
-    % if norm(kg_plus) > 0
-    %    kg_plus = zeros(3,1);
-    % end
-    % if norm(ba_plus) > 0
-    %    ba_plus = zeros(3,1);
-    % end
-    % if norm(ka_plus) > 0
-    %    ka_plus = zeros(3,1);
-    % end
+
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*Hb)*P_minus* (eye(21,21)-K * Hb)' + K*Rb*K';
     Pq_plus = Pq_minus;
@@ -247,11 +240,22 @@ function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,mag
     x_plus(11:13) = bg_plus;
     P_plus = P_minus;
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
-
+    P_plus(1:3,1:3) = Pq_plus(1:3,1:3);
+    P_plus(10:12,10:12) = Pq_plus(4:6,4:6);
+    P_plus(1:3,10:12) = Pq_plus(1:3,4:6);
+    P_plus(10:12,1:3) = Pq_plus(4:6,1:3);    
 end
 
 function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas)
     % STEP 2: KALMAN GAIN
+    if trace(P_minus(4:6,4:6)) > 1000
+        beta = 0.2;
+    else
+        beta = 0;
+    end
+    HP_minus = H*P_minus;
+    W = (1+beta)*HP_minus*H' + R;
+    K = P_minus*H'/ W;
     K = P_minus*H'/(H*P_minus*H' + R);
 
     % STEP 3: MEAS. UPDATE
@@ -277,11 +281,19 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
     %    ka_plus = zeros(3,1);
     % end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
+    % P_plus = P_minus - HP_minus / W * HP_minus';
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = Pq_minus;
 end
 function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas)
     % STEP 2: KALMAN GAIN
+    if trace(P_minus(4:6,4:6)) > 1000
+        beta = 0.2;
+    else
+        beta = 0;
+    end
+    W = (1+beta)*H*P_minus*H' + R;
+    K = P_minus*H'/ W;
     K = P_minus*H'/(H*P_minus*H' + R);
     Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
 
@@ -317,6 +329,10 @@ function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
+    P_plus(1:3,1:3) = Pq_plus(1:3,1:3);
+    P_plus(10:12,10:12) = Pq_plus(4:6,4:6);
+    P_plus(1:3,10:12) = Pq_plus(1:3,4:6);
+    P_plus(10:12,1:3) = Pq_plus(4:6,1:3);    
 end
 function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt)
     % step 1.5: propagate to next step using Euler integration
