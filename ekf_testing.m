@@ -74,7 +74,7 @@ Qq = dt*[nu_gv_mat zeros(3,3);
 % lla0 = [30.9275; -81.51472222222; 45];
 lla0 = sim_data.LLA0;
 q0 = [0.707106781186548; 0; 0.707106781186547; 0];
-q0 = [0.61902428;0.34681967;0.61068183;-0.35155755]; % TODO change this
+% q0 = [0.61902428;0.34681967;0.61068183;-0.35155755]; % TODO change this
 % attitude, pos, vel, g bias, a bias, g sf, a sf
 x0 = [q0; lla0; zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1)];
 n = size(x0,1);
@@ -239,23 +239,19 @@ function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,mag
     x_plus(1:4) = q_plus;
     x_plus(11:13) = bg_plus;
     P_plus = P_minus;
-    Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
-    P_plus(1:3,1:3) = Pq_plus(1:3,1:3);
-    P_plus(10:12,10:12) = Pq_plus(4:6,4:6);
-    P_plus(1:3,10:12) = Pq_plus(1:3,4:6);
-    P_plus(10:12,1:3) = Pq_plus(4:6,1:3);    
+    Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';   
 end
 
 function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas)
     % STEP 2: KALMAN GAIN
-    if trace(P_minus(4:6,4:6)) > 1000
-        beta = 0.2;
-    else
-        beta = 0;
-    end
-    HP_minus = H*P_minus;
-    W = (1+beta)*HP_minus*H' + R;
-    K = P_minus*H'/ W;
+    % if trace(P_minus(4:6,4:6)) > 1000
+    %     beta = 0.2;
+    % else
+    %     beta = 0;
+    % end
+    % HP_minus = H*P_minus;
+    % W = (1+beta)*HP_minus*H' + R;
+    % K = P_minus*H'/ W;
     K = P_minus*H'/(H*P_minus*H' + R);
 
     % STEP 3: MEAS. UPDATE
@@ -287,13 +283,13 @@ function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_m
 end
 function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas)
     % STEP 2: KALMAN GAIN
-    if trace(P_minus(4:6,4:6)) > 1000
-        beta = 0.2;
-    else
-        beta = 0;
-    end
-    W = (1+beta)*H*P_minus*H' + R;
-    K = P_minus*H'/ W;
+    % if trace(P_minus(4:6,4:6)) > 1000
+    %     beta = 0.2;
+    % else
+    %     beta = 0;
+    % end
+    % W = (1+beta)*H*P_minus*H' + R;
+    % K = P_minus*H'/ W;
     K = P_minus*H'/(H*P_minus*H' + R);
     Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
 
@@ -328,11 +324,7 @@ function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,
     % end
     x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
     P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
-    Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';
-    P_plus(1:3,1:3) = Pq_plus(1:3,1:3);
-    P_plus(10:12,10:12) = Pq_plus(4:6,4:6);
-    P_plus(1:3,10:12) = Pq_plus(1:3,4:6);
-    P_plus(10:12,1:3) = Pq_plus(4:6,1:3);    
+    Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';   
 end
 function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt)
     % step 1.5: propagate to next step using Euler integration

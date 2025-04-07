@@ -3,7 +3,7 @@ load("raw_flight_sim_data.mat");
 % apogee_index = 9447;
 apogee_index = find(simData.vel(3,:)>0,1);
 final_index = 119167; % 100 secs, covering apogee
-final_index = 40000; % 100 secs, covering apogee
+final_index = 104932; % 100 secs, covering apogee
 posI = double(simData.pos(:,1:final_index)); % NED
 accI = double(simData.acc(:,1:final_index)); % NED
 q = double(simData.quat(:,1:final_index));
