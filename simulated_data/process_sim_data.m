@@ -2,8 +2,8 @@ clear;
 load("raw_flight_sim_data.mat");
 % apogee_index = 9447;
 apogee_index = find(simData.vel(3,:)>0,1);
+final_index = 119167; % 100 secs, covering apogee
 final_index = 104932; % 100 secs, covering apogee
-% final_index = 50000; % 100 secs, covering apogee
 posI = double(simData.pos(:,1:final_index)); % NED
 accI = double(simData.acc(:,1:final_index)); % NED
 q = double(simData.quat(:,1:final_index));
@@ -24,7 +24,7 @@ R_gps = diag([1.35e-5;1.65e-5;2]); % GPS noise TODO
 noisy_LLA = (LLA + R_gps * randn(size(LLA)));
 GPS = nan(size(LLA));
 for i = 1: ratio: length(time)
-    if noisy_LLA(3,i) < 25000 && norm(accI(:,i)) < 4*9.8
+    if noisy_LLA(3,i) < 19000 && norm(accI(:,i)) < 4*9.8
         GPS(:,i) = noisy_LLA(:,i);
     end
 end
@@ -77,6 +77,32 @@ for i = 1:ratio:size(magB,2)
     magB(:,i) = quaternion2DCM(q(:,i))' * magI ;
 end
 magB = magB + mag_noise;
+%% Generate Barometer Measurements
+p_0 = 102715.47296217596;
+a = [-0.004366921037228173;
+   -5.0964993627948606 * 10^-5;
+   1.6319216411827967 * 10^-9;
+   -6.053135304413484 * 10^-13;
+   6.911049045104908 * 10^-17;
+   -4.516216131249696 * 10^-21;
+   1.90623861182507 * 10^-25;
+   -5.457995055935324 * 10^-30;
+   1.0906415917824724 * 10^-34;
+   -1.5456197431929747 * 10^-39;
+   1.5609417634668778 * 10^-44;
+   -1.1149608634620734 * 10^-49;
+   5.500087730582754 * 10^-55;
+   -1.7817554862391996 * 10^-60;
+   3.409963106133886 * 10^-66;
+   -2.9213421378235885 * 10^-72];
+press = nan(size(time));
+for i = (apogee_index + 20000) : final_index
+    h = LLA(3,i);
+    press(i) = pressure_function(h,p_0,a);
+end
+sig_baro =2.5e-3; % bar
+baro_noise = sig_baro*randn(size(press));
+baro = press + baro_noise;
 %%
 sim_data.time = time;
 sim_data.acc = acc;
@@ -93,6 +119,8 @@ sim_data.GPS = GPS; % GPS measurment
 sim_data.magB = magB; % magnetometer measurement
 sim_data.magI = magI;
 sim_data.apogee_idx = apogee_index;
+sim_data.baro = baro;
+sim_data.press = press;
 save("sim_data_4_EKF_testing.mat","sim_data");
 
 %%

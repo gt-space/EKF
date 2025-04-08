@@ -1,14 +1,10 @@
 % uses a reference pressure p_0 and a 15th order best-fit polynomial (stored as an array of 16 coefficients) to estimate atmosphere properties at some altitude
 % 0th order coefficient first, 15th order last
-% turns an altitude, h (meters), into a pressure, p (pascal)
+% p_0 should be in pascal
+% turns an altitude, h (meters), into a pressure, p
 function p = pressure_function(h, p_0, a)
-    p = p_0 * exp(tranpose(a) * [1.0; h; h^2; h^3; h^4; h^5; h^6; h^7; h^8; h^9; h^10; h^11; h^12; h^13; h^14; h^15]);
-end
-
-
-% derivative of the pressure function
-function dpdh = pressure_derivative(h, p_0, a)
-    dpdh = p_0 * (transpose(a) * [0.0; 1.0; 2.0 * h; 3.0 * h^2; 4.0 * h^3; 5.0 * h^4; 6.0 * h^5; 7.0 * h^6; 8.0 * h^7; 9.0 * h^8; 10.0 * h^9; 11.0 * h^10; 12.0 * h^11; 13.0 * h^12; 14.0 * h^13; 15.0 * h^14]) * exp(tranpose(a) * [1.0; h; h^2; h^3; h^4; h^5; h^6; h^7; h^8; h^9; h^10; h^11; h^12; h^13; h^14; h^15]);
+    p = p_0 * 10^(a' * [1.0; h; h^2; h^3; h^4; h^5; h^6; h^7; h^8; h^9; h^10; h^11; h^12; h^13; h^14; h^15]);
+    p = p * 10^-5; % convert pascal to bar
 end
 
 

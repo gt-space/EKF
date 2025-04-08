@@ -3,7 +3,7 @@
 % Jekeli, Christopher (August, 2016). Geometric Reference Systems in Geodesy. Ohio State University.
 % data from TOPEX/Poseidon (1992) following IERS recommendations
 % algorithm from Fukushima, Toshio (December, 1999). Fast transform from geocentric to geodetic coordinates. Journal of Geodesy. National Astronomical Observatory.
-function geo_lla = ecef2lla(r)
+function geo_lla = improved_ecef2lla(r)
     a = 6378136.3; % semi-major axis in m
     f = (298.257)^-1; % flattening
     b = a * (1.0 - f); % semi-minor axis
