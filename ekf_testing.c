@@ -28,12 +28,41 @@ double secd(double phi)
     return 1 / cosd(phi);
 }
 
+double sec(double phi)
+{
+    return 1 / cos(phi);
+}
+
 double tand(double phi)
 {
     return sind(phi) / cosd(phi);
 }
 
-void compute_dwdp(double result[3][3], double x[], double we)
+void compute_radii(double *R_phi, double *R_lamb, double *dR_phi_dphi, double *dR_lamb_dphi, double x[22])
+{
+    long a = 6378137;
+    double b = 6356752.31425;
+    double e2 = 1 - pow(b / a, 2);
+    double phi = x[4];
+
+    double num1 = a * (1 - e2);
+    double den1 = pow((1 - e2 * pow(sin(phi * M_PI / 180), 2)), 3 / 2);
+    double den2 = pow((1 - e2 * pow(sin(phi * M_PI / 180), 2)), 1 / 2);
+
+    *R_phi = num1 / den1;
+    *R_lamb = a / den2;
+
+    double num3 = 3 * a * (1 - e2) * e2 * sin(phi * M_PI / 180) * cos(phi * M_PI);
+    double den3 = pow(1 - e2 * pow(sin(phi * M_PI / 180), 2), 5 / 2);
+
+    double num4 = a * e2 * sin(phi * M_PI / 180) * cos(phi * M_PI / 180);
+    double den4 = pow(1 - e2 * pow(sin(phi * M_PI / 180), 2), 3 / 2);
+
+    *dR_lamb_dphi = num4 / den4;
+    *dR_phi_dphi = num3 / num3;
+}
+
+void compute_dwdp(double result[3][3], double x[22], double we)
 {
     double phi = x[4];
     double h = x[6];
@@ -164,11 +193,11 @@ void compute_g(double *g, double *dg_dphi, double *dg_dh, double x[22])
 {
     double phi = x[4];
     double h = x[6];
-    double g = 9.780327 * (1 + 5.3024 * pow(10, -3) * pow(sind(phi), 2) - 5.8 * pow(10, -6) * pow(sind(2 * phi), 2)) - (3.0877 * pow(10, -6) - 4.4 * pow(10, -9) * pow(sind(phi), 2)) * h + 7.2 * pow(10, -14) * pow(h, 2);
+    double grav = 9.780327 * (1 + 5.3024 * pow(10, -3) * pow(sind(phi), 2) - 5.8 * pow(10, -6) * pow(sind(2 * phi), 2)) - (3.0877 * pow(10, -6) - 4.4 * pow(10, -9) * pow(sind(phi), 2)) * h + 7.2 * pow(10, -14) * pow(h, 2);
 
-    double dg_dphi = 9.780327 * (1.06048 * pow(10, -2) * sind(phi) * cosd(phi) - 4.64 * pow(10, -5) * (sind(phi) * pow(cosd(phi), 3) - pow(sind(phi), 3) * cosd(phi))) + 8.8 * pow(10, -9) * h * sind(phi) * cosd(phi);
+    *dg_dphi = 9.780327 * (1.06048 * pow(10, -2) * sind(phi) * cosd(phi) - 4.64 * pow(10, -5) * (sind(phi) * pow(cosd(phi), 3) - pow(sind(phi), 3) * cosd(phi))) + 8.8 * pow(10, -9) * h * sind(phi) * cosd(phi);
 
-    double dg_dh = -3.0877 * pow(10, -6) + 4.4 * pow(10, -9) * pow(sind(phi), 2) + 1.44 * pow(10, -13) * h;
+    *dg_dh = -3.0877 * pow(10, -6) + 4.4 * pow(10, -9) * pow(sind(phi), 2) + 1.44 * pow(10, -13) * h;
 }
 
 void compute_dvdot_dp(double result[3][3], double x[22], double we)
@@ -346,31 +375,7 @@ void createXiMat(double result[4][3], double x[22])
     }
 }
 
-void compute_radii(double *R_phi, double *R_lamb, double *dR_phi_dphi, double *dR_lamb_dphi, double x[])
-{
-    long a = 6378137;
-    double b = 6356752.31425;
-    double e2 = 1 - pow(b / a, 2);
-    double phi = x[4];
-
-    double num1 = a * (1 - e2);
-    double den1 = pow((1 - e2 * pow(sin(phi * M_PI / 180), 2)), 3 / 2);
-    double den2 = pow((1 - e2 * pow(sin(phi * M_PI / 180), 2)), 1 / 2);
-
-    *R_phi = num1 / den1;
-    *R_lamb = a / den2;
-
-    double num3 = 3 * a * (1 - e2) * e2 * sin(phi * M_PI / 180) * cos(phi * M_PI);
-    double den3 = pow(1 - e2 * pow(sin(phi * M_PI / 180), 2), 5 / 2);
-
-    double num4 = a * e2 * sin(phi * M_PI / 180) * cos(phi * M_PI / 180);
-    double den4 = pow(1 - e2 * pow(sin(phi * M_PI / 180), 2), 3 / 2);
-
-    *dR_lamb_dphi = num4 / den4;
-    *dR_phi_dphi = num3 / num3;
-}
-
-void compute_wn(double x[], double we)
+void compute_wn(double result[3], double x[22], double we)
 {
     double phi = x[4];
     double h = x[6];
@@ -387,7 +392,10 @@ void compute_wn(double x[], double we)
                       -vn / (R_phi + h),
                       -(ve * tan(phi * M_PI / 180) / (R_lamb + h))};
 
-    double wn[3] = vec1[0] + vec2[0] + vec1[1] + vec2[1] + vec1[2] + vec2[2];
+    double wn[3] = {vec1[0] + vec2[0], vec1[1] + vec2[1], vec1[2] + vec2[2]};
+    result[0] = wn[0];
+    result[1] = wn[1];
+    result[2] = wn[2];
 }
 
 void quaternion2DCM(double DCM[3][3], double q[4])
@@ -419,7 +427,7 @@ void transpose_matrix(double result[3][3], double matrix[3][3])
     }
 }
 
-double compute_what(double x[], double w_meas[], double we)
+void compute_what(double result[3], double x[22], double w_meas[4], double we)
 {
     double sf_g[3] = {0};
     for (int i = 0; i < 3; i++)
@@ -444,6 +452,26 @@ double compute_what(double x[], double w_meas[], double we)
 
     quaternion2DCM(DCM, q);
     transpose_matrix(D_bn, DCM);
+
+    double w_n[3];
+    compute_wn(w_n, x, we);
+
+    double prod[3];
+    for (int i = 0; i < 3; i++)
+    {
+        prod[i] = D_bn[i][0] * w_n[0] + D_bn[i][1] * w_n[1] + D_bn[i][2] * w_n[2];
+    }
+
+    double w_hat[3];
+    for (int i = 0; i < 3; i++)
+    {
+        w_hat[i] = 1 / (1 + sf_g[i]) * (w_meas[i] - bias_g[i]) - prod[i];
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        result[i] = w_hat[i];
+    }
 }
 
 void copy_matrix(int size, double dest[size][size], double src[size][size])
@@ -475,9 +503,9 @@ double deg2rad(double deg)
 }
 
 // QUATERNIONS
-int dot(double v1[3], double v2[3])
+double dot(double v1[3], double v2[3])
 {
-    int dot_product = 0;
+    double dot_product = 0;
     for (int i = 0; i < 3; i++)
     {
         dot_product += v1[i] * v2[i];
@@ -511,6 +539,8 @@ double norm(double q[4])
     {
         norm += q[i] * q[i];
     }
+
+    return norm;
 }
 
 void qconj(double q[4], double qbar[4])
@@ -584,7 +614,7 @@ void quaternion_exp(double v[3], double dq[4])
     }
 }
 
-void quaternion2DCM(double q[4], double CB21[3][3])
+void quaternion2DCM_new(double q[4], double CB21[3][3])
 {
     double norm_q = norm(q);
     norm_q = sqrt(norm_q);
@@ -649,6 +679,23 @@ void ecef2lla(double ecef[3], double lla[3])
     lla[2] = h;
 }
 
+void lla2ecef(double lla[3], double ecef[3])
+{
+    double a = 6378137;
+    double b = 6356752.3124;
+    double e = 0.08181919;
+    double phi = lla[0];
+    double lambda = lla[1];
+    double h = lla[2];
+    double N = a / sqrt(1 - pow(e * sind(phi), 2));
+    double x = (N + h) * cosd(phi) * cosd(lambda);
+    double y = (N + h) * cosd(phi) * sind(lambda);
+    double z = (N * (1 - e * e) + h) * sind(phi);
+    ecef[0] = x;
+    ecef[1] = y;
+    ecef[2] = z;
+}
+
 void ecef2ned(double ecef[3], double lla0[3], double ned[3])
 {
     double ecef0[3];
@@ -684,7 +731,7 @@ void improvedecef2lla(double r[3], double geo_lla[3])
     double y = r[1];
     double z = r[2];
     double p = sqrt(x * x + y * y);
-    double z_norm = abs(z);
+    double z_norm = fabs(z);
     double phi;
     double lambda;
     double h_geo;
@@ -743,7 +790,7 @@ void improvedecef2lla(double r[3], double geo_lla[3])
             double delta_t = (p - (p * pow(t, 4) + u * pow(t, 3) + v * t)) / (4.0 * p * pow(t, 3) + 3.0 * u * pow(t, 2) + v);
             double prev_t = t;
             t = t + delta_t;
-            double TE = abs(t - prev_t);
+            double TE = fabs(t - prev_t);
             if (TE <= epsilon)
                 break;
         }
@@ -762,23 +809,6 @@ void improvedecef2lla(double r[3], double geo_lla[3])
     geo_lla[0] = phi;
     geo_lla[1] = lambda;
     geo_lla[2] = h_geo;
-}
-
-void lla2ecef(double lla[3], double ecef[3])
-{
-    double a = 6378137;
-    double b = 6356752.3124;
-    double e = 0.08181919;
-    double phi = lla[0];
-    double lambda = lla[1];
-    double h = lla[2];
-    double N = a / sqrt(1 - pow(e * sind(phi), 2));
-    double x = (N + h) * cosd(phi) * cosd(lambda);
-    double y = (N + h) * cosd(phi) * sind(lambda);
-    double z = (N * (1 - e * e) + h) * sind(phi);
-    ecef[0] = x;
-    ecef[1] = y;
-    ecef[2] = z;
 }
 
 void lla2ned(double lla[3], double lla0[3], double ned[3])
@@ -971,7 +1001,7 @@ int main()
     double gsf_unc0 = 1e-4;   // gyro scale factor uncertainty [rad/s]
     double asf_unc0 = 1e-4;   // accel scale factor uncertainty [rad/s]
 
-    double diag_values[19] = {
+    double diag_values[21] = {
         att_unc0, att_unc0, att_unc0,
         pos_unc0, pos_unc0, pos_unc0,
         vel_unc0, vel_unc0, vel_unc0,
