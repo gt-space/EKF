@@ -2,8 +2,9 @@ clear;
 load("raw_flight_sim_data.mat");
 % apogee_index = 9447;
 apogee_index = find(simData.vel(3,:)>0,1);
-final_index = 119167; % 100 secs, covering apogee
-final_index = 104932; % 100 secs, covering apogee
+final_index = length(simData.time); % 100 secs, covering apogee
+% final_index = 104932; % 100 secs, covering apogee
+% final_index = apogee_index+30000; % 100 secs, covering apogee
 posI = double(simData.pos(:,1:final_index)); % NED
 accI = double(simData.acc(:,1:final_index)); % NED
 q = double(simData.quat(:,1:final_index));
@@ -11,10 +12,9 @@ omegaB = double(simData.omega(:,1:final_index)); % body
 time = double(simData.time(:,1:final_index));
 dt = time(2) - time(1);
 IMU_freq = round(1/dt); % Hz
-
 %% generate GPS data
 lla0 = double(simData.lla0);
-GPS_freq = 2; % Hz
+GPS_freq = 1; % Hz
 ratio = round(IMU_freq / GPS_freq);
 LLA = zeros(3, length(time));
 for i = 1: length(time)
@@ -24,7 +24,7 @@ R_gps = diag([1.35e-5;1.65e-5;2]); % GPS noise TODO
 noisy_LLA = (LLA + R_gps * randn(size(LLA)));
 GPS = nan(size(LLA));
 for i = 1: ratio: length(time)
-    if noisy_LLA(3,i) < 19000 && norm(accI(:,i)) < 4*9.8
+    if noisy_LLA(3,i) < 29000 && norm(accI(:,i)) < 4*9.8
         GPS(:,i) = noisy_LLA(:,i);
     end
 end
@@ -78,6 +78,8 @@ for i = 1:ratio:size(magB,2)
 end
 magB = magB + mag_noise;
 %% Generate Barometer Measurements
+baro_freq = 20;
+ratio = round(IMU_freq / baro_freq);
 p_0 = 102715.47296217596;
 a = [-0.004366921037228173;
    -5.0964993627948606 * 10^-5;
@@ -96,7 +98,7 @@ a = [-0.004366921037228173;
    3.409963106133886 * 10^-66;
    -2.9213421378235885 * 10^-72];
 press = nan(size(time));
-for i = (apogee_index + 20000) : final_index
+for i = (apogee_index + 5000) : ratio: final_index
     h = LLA(3,i);
     press(i) = pressure_function(h,p_0,a);
 end
@@ -106,7 +108,7 @@ baro = press + baro_noise;
 %%
 sim_data.time = time;
 sim_data.acc = acc;
-sim_data.gyro = gyro; % TODO what is the output of gyro? Euler rate?
+sim_data.gyro = gyro; % 
 sim_data.ba = ba; % "true" bias
 sim_data.bg = bg;
 sim_data.Sa = Sa; % "true" scaling factor

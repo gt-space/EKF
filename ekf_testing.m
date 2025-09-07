@@ -18,9 +18,9 @@ we = 0; % TODO only for current sim data
 % DEFINE PARAMETERS
 IMU_freq = 100; % save sample rate variable
 dt = 1/IMU_freq; % get time step
-GPS_freq = 20;
-mag_freq = 100;
-baro_freq = 1000;
+GPS_freq = 1;
+mag_freq = 10;
+baro_freq = 20;
 
 % define H
 H = zeros(3,21); H(:,4:6) = eye(3); % Eqn for Hk in Table 7.2
@@ -74,7 +74,6 @@ Qq = dt*[nu_gv_mat zeros(3,3);
 % lla0 = [30.9275; -81.51472222222; 45];
 lla0 = sim_data.LLA0;
 q0 = [0.707106781186548; 0; 0.707106781186547; 0];
-% q0 = [0.61902428;0.34681967;0.61068183;-0.35155755]; % TODO change this
 % attitude, pos, vel, g bias, a bias, g sf, a sf
 x0 = [q0; lla0; zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1); zeros(3,1)];
 n = size(x0,1);
@@ -97,6 +96,7 @@ P_plus = P0;
 Pq_plus = Pq0;
 
 Xplus_history = zeros(n,N);
+Pplus_history = zeros(4,4,N);
 % Run EKF
 % running = true;
     
@@ -117,7 +117,6 @@ for i = 1 : N
     % iterates through each point
     a_meas = acc(:,i);
     w_meas = omega(:,i);
-    
     w_hat = compute_what(x_plus,w_meas,we); % compute gyro estimate (accounting for sf & bias)
     ahat_n = compute_ahat(x_plus,a_meas); % compute accel estimate (accounting for sf, bias & frame transformation)
     Dt_GPS = dt*(i-1) - last_GPS_time;
@@ -128,32 +127,36 @@ for i = 1 : N
     mag_meas = magB(:,i);
     press_meas = baro(i);
 
-    if ~(sum(isnan(lla_meas)) || sum(isnan(mag_meas))) % both available
-        last_GPS_time = dt * (i-1);
-        last_mag_time = dt * (i-1);
+    if ~( sum(isnan(lla_meas)) || sum(isnan(mag_meas)) ) % both available
         [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas);
-    elseif ~sum(isnan(lla_meas))
         last_GPS_time = dt * (i-1);
-        [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas);
-    elseif ~ sum(isnan(mag_meas))
         last_mag_time = dt * (i-1);
+    elseif ~sum(isnan(lla_meas))
+        [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas);
+        last_GPS_time = dt * (i-1);
+    elseif ~sum(isnan(mag_meas))
         [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,magI,mag_meas);
+        last_mag_time = dt * (i-1);
     else
         x_plus = x_minus;
         P_plus = P_minus;
         Pq_plus = Pq_minus;
     end
-    if i > 28060 && i < 31050
-        x_plus(8:10) = x_minus(8:10); % not to mess up velocity
-    end
+    % if i > 39060 && i < 44050
+    %     x_plus(8:10) = x_minus(8:10); % not to mess up velocity
+    % end
     % if Dt_GPS > 10 % lost GPS for more than 10 secs (arbitrary)
     %     x_plus(8:10) = x_minus(8:10); % not to mess up velocity
     % end
     if ~ sum(isnan(press_meas))
         [x_plus,P_plus,Pq_plus] = update_baro(x_plus,P_plus,Pq_plus,Hb,Rb,press_meas,hb);
     end
-
+    if any(diag(P_plus)<0)
+        fprintf("%d\n",i);
+        P_plus = nearestPSD(P_plus); %+ diag(max(1e-6 - diag(P_plus), 0)); % heuristic to correct diagonal negative covariance
+    end
     Xplus_history(:, i) = x_plus; % saves the value from xplus 1X22 vector for each dt
+    Pplus_history(:,:, i) = P_plus(6:9,6:9);
 end
 
 att_error = zeros(1,N);
@@ -196,7 +199,22 @@ title('Velocity Error')
 legend('v1','v2','v3')
 grid on;
 
+figure
+plot(t,squeeze(Pplus_history(1,1,:)),'LineWidth', 2)
+hold on
+plot(t,squeeze(Pplus_history(2,2,:)),'LineWidth', 2)
+plot(t,squeeze(Pplus_history(3,3,:)),'LineWidth', 2)
+plot(t,squeeze(Pplus_history(4,4,:)),'LineWidth', 2)
+legend('P66','P77','P88','P99')
+grid on;
+hold off
 %% Helper functions
+function P_fixed = nearestPSD(P)
+    [V, D] = eig((P + P')/2);           % Ensure symmetry and decompose
+    D(D < 1e-10) = 1e-10;               % Clamp negative/near-zero eigenvalues
+    P_fixed = V * D * V';              % Reconstruct matrix
+end
+
 function [x_plus,P_plus,Pq_plus] = update_baro(x_minus,P_minus,Pq_minus,Hb_func,Rb,press_meas,hb)
     % STEP 2: KALMAN GAIN
     Hb = Hb_func(x_minus);
@@ -242,55 +260,17 @@ function [x_plus,P_plus,Pq_plus] = update_mag(x_minus,P_minus,Pq_minus,Hq,Rq,mag
     Pq_plus = (eye(6) - Kq * Hq) * Pq_minus * (eye(6) - Kq * Hq)' + Kq * Rq * Kq';   
 end
 
-function [x_plus,P_plus,Pq_plus] = update_GPS(x_minus,P_minus,Pq_minus,H,R,lla_meas)
-    % STEP 2: KALMAN GAIN
-    % if trace(P_minus(4:6,4:6)) > 1000
-    %     beta = 0.2;
-    % else
-    %     beta = 0;
-    % end
-    % HP_minus = H*P_minus;
-    % W = (1+beta)*HP_minus*H' + R;
-    % K = P_minus*H'/ W;
-    K = P_minus*H'/(H*P_minus*H' + R);
-
-    % STEP 3: MEAS. UPDATE
-    q_minus = x_minus(1:4);
-    Delta_x = K*(lla_meas - x_minus(5:7)); % Step 3.1: compute DeltaX vector
-
-    dq = quaternion_exp(Delta_x(1:3)/2);
-    % q_plus = delta_q ⊗ q_minus
-    q_plus = qmult(dq,q_minus);
-    p_plus = x_minus(5:7) + Delta_x(4:6);
-    v_plus = x_minus(8:10) + Delta_x(7:9);
-    bg_plus = x_minus(11:13) + Delta_x(10:12);
-    ba_plus = x_minus(14:16) + Delta_x(13:15);
-    kg_plus = x_minus(17:19) + Delta_x(16:18);
-    ka_plus = x_minus(20:22) + Delta_x(19:21);
-    % if norm(kg_plus) > 0
-    %    kg_plus = zeros(3,1);
-    % end
-    % if norm(ba_plus) > 0
-    %    ba_plus = zeros(3,1);
-    % end
-    % if norm(ka_plus) > 0
-    %    ka_plus = zeros(3,1);
-    % end
-    x_plus = [q_plus; p_plus; v_plus; bg_plus; ba_plus; kg_plus; ka_plus];
-    % P_plus = P_minus - HP_minus / W * HP_minus';
-    P_plus = (eye(21,21) - K*H)*P_minus* (eye(21,21)-K * H)' + K*R*K';
-    Pq_plus = Pq_minus;
-end
 function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas)
     % STEP 2: KALMAN GAIN
-    % if trace(P_minus(4:6,4:6)) > 1000
-    %     beta = 0.2;
-    % else
-    %     beta = 0;
-    % end
-    % W = (1+beta)*H*P_minus*H' + R;
-    % K = P_minus*H'/ W;
-    K = P_minus*H'/(H*P_minus*H' + R);
+    % underweighting
+    if trace(P_minus(4:5,4:5))*1e5 + P_minus(6,6) > 1000
+        beta = 0;
+    else
+        beta = 0;
+    end
+    W = (1+beta)*H*P_minus*H' + R;
+    K = P_minus*H'/ W;
+    % K = P_minus*H'/(H*P_minus*H' + R);
     Kq = Pq_minus * Hq' / (Hq * Pq_minus * Hq' + Rq);
 
     % STEP 3: MEAS. UPDATE
@@ -335,12 +315,13 @@ function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat
     Pqdot = compute_Pqdot(x_plus,Pq_plus,Qq,w_meas);
     [x_minus,P_minus,Pq_minus] = integrate(x_plus,P_plus,Pq_plus,dt,qdot,pdot,vdot,Pdot,Pqdot);
     % X0 = [x_plus;P_plus(:);Pq_plus(:)];
+    % % RK4
     % [~,X] = ode45(@(t,x)dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq),[0,dt],X0);
     % x_minus = X(end,1:22)';
     % P_minus = reshape(X(end,23:end-36)',21,21);
     % Pq_minus = reshape(X(end,end-35:end)',6,6);
 end
-function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq)
+function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq) % only used by RK4
     x_plus = x(1:22);
     P_plus = reshape(x(23:end-36),21,21);
     Pq_plus = reshape(x(end-35:end),6,6);
@@ -514,7 +495,7 @@ D_nb = quaternion2DCM(q); % get DCM from body frame to NED frame
 D_bn = D_nb'; 
 
 F11_vec = -1./(1 + sf_g).*(w_meas - bias_g);
-F11 = createSkewSymmMat(F11_vec); % Eqn. 7.79a
+F11 = skew(F11_vec); % Eqn. 7.79a
 
 dwdp = compute_dwdp(x,we);
 F12 = -D_bn*dwdp; % Eqn. 7.79a
@@ -533,7 +514,7 @@ F23 = compute_dpdot_dv(x); % Eqn. 7.79c
 
 ahat_n = compute_ahat(x,a_meas);
 ahat_b = D_bn*ahat_n;
-F31 = -D_nb*createSkewSymmMat(ahat_b); % Eqn. 7.79d
+F31 = -D_nb*skew(ahat_b); % Eqn. 7.79d
 
 F32 = compute_dvdot_dp(x,we); % Eqn. 7.79d
 F33 = compute_dvdot_dv(x,we); % Eqn. 7.79d
@@ -697,14 +678,6 @@ dvdot_dv = [Z11, Z12, Z13;...
 
 end
 
-function ssMat = createSkewSymmMat(vec)
-%input is a 3x1 vector
-%output is a skew symmetric matrix using that vector
-
-ssMat = [0, -vec(3), vec(2);
-    vec(3), 0, -vec(1);
-    -vec(2), vec(1), 0];
-end
 
 function [x_minus,P_minus,Pq_minus] = integrate(x,P,Pq,dt,qdot,pdot,vdot,Pdot,Pqdot)
 
