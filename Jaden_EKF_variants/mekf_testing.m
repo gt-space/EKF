@@ -11,6 +11,7 @@ magB = sim_data.magB;
 magI = sim_data.magI;
 baro = sim_data.baro;
 t = sim_data.time;
+t = t(1:1000);
 N = length(t);
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
@@ -110,7 +111,7 @@ Pplus_history = zeros(4,4,N);
 last_GPS_time = 0;
 last_mag_time = 0;
 
-for i = 1 : floor(N/100)
+for i = 1 : N
     % if i == sim_data.apogee_idx + 3000
     %     x_plus(11:13) = zeros(3,1);
     % end
@@ -173,7 +174,7 @@ ylabel('Attitude Error (degree)');
 title('Attitude Error');
 grid on;
 
-ned_error = zeros(size(ned));
+ned_error = zeros(size(ned,1),N);
 for i = 1:N
     ned_error(:,i) = lla2ned(Xplus_history(5:7,i),lla0)-ned(:,i);
 end

@@ -263,8 +263,8 @@ end
 function [x_plus,P_plus,Pq_plus] = update_GPS_mag(x_minus,P_minus,Pq_minus,H,Hq,R,Rq,magI,lla_meas,mag_meas)
     % STEP 2: KALMAN GAIN
     % underweighting
-    if trace(P_minus(4:5,4:5))*1e5 + P_minus(6,6) > 1000
-        beta = 0;
+    if trace(P_minus(4:5,4:5)) + P_minus(6,6) > 1000
+        beta = 0.25;
     else
         beta = 0;
     end
