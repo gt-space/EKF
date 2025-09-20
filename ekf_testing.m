@@ -209,10 +209,10 @@ legend('P66','P77','P88','P99')
 grid on;
 hold off
 %% Helper functions
-function P_fixed = nearestPSD(P)
+function P_corrected = nearestPSD(P)
     [V, D] = eig((P + P')/2);           % Ensure symmetry and decompose
     D(D < 1e-10) = 1e-10;               % Clamp negative/near-zero eigenvalues
-    P_fixed = V * D * V';              % Reconstruct matrix
+    P_corrected = V * D * V';              % Reconstruct matrix
 end
 
 function [x_plus,P_plus,Pq_plus] = update_baro(x_minus,P_minus,Pq_minus,Hb_func,Rb,press_meas,hb)
@@ -309,7 +309,7 @@ end
 function [x_minus,P_minus,Pq_minus] = propagate(x_plus,P_plus,Pq_plus,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq,dt)
     % step 1.5: propagate to next step using Euler integration
     qdot = compute_qdot(x_plus,w_hat); % compute attitude derivative
-    pdot = compute_pdot(x_plus); % compute position derivative
+    pdot = compute_lla_dot(x_plus); % compute position derivative
     vdot = compute_vdot(x_plus,ahat_n,we); % compute velocity derivative
     Pdot = compute_Pdot(x_plus,P_plus,Q,a_meas,w_meas,we); % compute covariance derivative
     Pqdot = compute_Pqdot(x_plus,Pq_plus,Qq,w_meas);
@@ -326,7 +326,7 @@ function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq) % only used by 
     P_plus = reshape(x(23:end-36),21,21);
     Pq_plus = reshape(x(end-35:end),6,6);
     qdot = compute_qdot(x_plus,w_hat); % compute attitude derivative
-    pdot = compute_pdot(x_plus); % compute position derivative
+    pdot = compute_lla_dot(x_plus); % compute position derivative
     vdot = compute_vdot(x_plus,ahat_n,we); % compute velocity derivative
     Pdot = compute_Pdot(x_plus,P_plus,Q,a_meas,w_meas,we); % compute covariance derivative
     Pdot = Pdot(:);
@@ -334,16 +334,16 @@ function xdot = dynamics(t,x,w_hat,ahat_n,w_meas,a_meas,we,Q,Qq) % only used by 
     Pqdot = Pqdot(:);
     xdot = [qdot;pdot;vdot;zeros(12,1);Pdot;Pqdot];
 end
-function Pqdot = compute_Pqdot(xk_plus,Pq_plus,Qq,w_meas)
-    q = xk_plus(1:4);
+function Pqdot = compute_Pqdot(x,Pq,Qq,w_meas)
+    q = x(1:4);
     CB2I = quaternion2DCM(q);
-    bg_minus = xk_plus(11:13);
+    bg_minus = x(11:13);
     I_omega = CB2I*(w_meas - bg_minus);
     Fq = [zeros(3,3) -eye(3);
          zeros(3,3) skew(I_omega)];
     Gq = [CB2I zeros(3,3);
          zeros(3,3) -CB2I];
-    Pqdot = Fq*Pq_plus+ Pq_plus*Fq' + Gq*Qq*Gq'; % compute covariance derivative
+    Pqdot = Fq*Pq+ Pq*Fq' + Gq*Qq*Gq'; % compute covariance derivative
 end
 
 function wn = compute_wn(x,we)
@@ -392,10 +392,11 @@ function qdot = compute_qdot(x,what)
 q_bn = x(1:4); % get quaternion
 w_quat = [0; what]; % convert angular rate into quaternion form
 qdot = 1/2*qmult(q_bn,w_quat); % compute quaternion derivative
+% qdot = 0.5 * what;
 end
 
 
-function pdot = compute_pdot(x)
+function lla_dot = compute_lla_dot(x)
 
 phi = x(5); % get latitude
 h = x(7); % get height/altitude
@@ -409,7 +410,7 @@ phidot = vn/(R_phi + h); % Eqn 7.68c
 lambdot = ve/((R_lamb + h)*cosd(phi)); % Eqn 7.68d
 hdot = -vd; % Eqn 7.68e
 
-pdot = [phidot; lambdot; hdot]; % assemble pdot vector
+lla_dot = [phidot; lambdot; hdot]; % assemble pdot vector
 end
 
 function vdot = compute_vdot(x,ahat_n,we)
@@ -420,7 +421,7 @@ vn = x(8); ve = x(9); vd = x(10); % get vel components
 an = ahat_n(1); ae = ahat_n(2); ad = ahat_n(3); % get accel components
 
 [R_phi, R_lamb, ~, ~] = compute_radii(x); % compute radii
-[ghat,~,~] = compute_g(x); % get gravity estimate
+[ghat,~,~] = compute_g_dg(x); % get gravity estimate
 
 vndot = -(ve/((R_lamb + h)*cosd(phi)) + 2*we)*ve*sind(phi) + (vn*vd)/(R_phi + h) + an; % Eqn 7.68f
 vedot = (ve/((R_lamb + h)*cosd(phi)) + 2*we)*vn*sind(phi) + (ve*vd)/(R_lamb + h) + 2*we*vd*cosd(phi) + ae; % Eqn 7.68g
@@ -439,7 +440,7 @@ Pdot = F*P + P*F' + G*Q*G';
 
 end
 
-function [g,dg_dphi,dg_dh] = compute_g(x)
+function [g,dg_dphi,dg_dh] = compute_g_dg(x)
 
 phi = x(5); % get latitude
 h = x(7); % get height/altitude
@@ -637,7 +638,7 @@ vn = x(8); ve = x(9); vd = x(10); % get vel components
 
 [R_phi, R_lamb, dR_phi_dphi, dR_lamb_dphi] = compute_radii(x);
 
-[~,dg_dphi,dg_dh] = compute_g(x);
+[~,dg_dphi,dg_dh] = compute_g_dg(x);
 
 Y11 = -(ve^2*secd(phi)^2)/(R_lamb + h) + (ve^2*tand(phi))/(R_lamb + h)^2*dR_lamb_dphi ... % Eqn 7.82a
     - 2*we*ve*cosd(phi) - (vn*vd)/(R_phi + h)^2 * dR_phi_dphi;
@@ -695,6 +696,19 @@ x_minus(1:4) = q_next/q_norm; % normalize quaternion
 
 P_minus = P + dt*Pdot; % use Euler integration
 Pq_minus = Pq + dt*Pqdot; % use Euler integration
+
+% xdot = [pdot; vdot; zeros(12,1)];
+% q = x(1:4);
+% q_next = qmult(q, quaternion_exp(qdot)); % use exponential map to get unit quaternion
+% q_norm = norm(q_next);
+% if q_norm > 1.01 % if quaternion norm is above 1% greater than unity
+% %     warning('Quaternion norm of %.2f is > 1 percent of unity, consider decreasing integrator step size.',norm(q_next))
+% end
+% q_minus = q_next/q_norm; % normalize quaternion
+% 
+% x_minus = [q_minus; x(5:end) + dt*xdot];
+% P_minus = P + dt*Pdot; % use Euler integration
+% Pq_minus = Pq + dt*Pqdot; % use Euler integration
 
 end
 
