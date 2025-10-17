@@ -12,7 +12,7 @@ function [x_plus,P_plus,Pq_plus,deploy_drogue,deploy_chute] = EKF_update(x_prev,
         [x_plus,P_plus,Pq_plus] = update_GPS(x_plus,P_plus,Pq_plus,H,R,lla_meas);
     end
     if ~sum(isnan(mag_meas))
-        [x_plus,P_plus,Pq_plus] = update_mag(x_plus,P_plus,Pq_plus,Hq,Rq,magI,mag_meas);
+        [x_plus,P_plus,Pq_plus] = update_mag(x_plus,P_plus,Pq_plus,Hq,Rq,R,magI,mag_meas);
     end
     if ~sum(isnan(press_meas))
         [x_plus,P_plus,Pq_plus] = update_baro(x_plus,P_plus,Pq_plus,Hb,Rb,press_meas,hb);

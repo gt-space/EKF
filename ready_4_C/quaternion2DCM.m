@@ -13,7 +13,6 @@ q = q / norm(q);
 s = q(1);
 v = q(2:4);
 CB2I = (s^2 - dot(v,v))*eye(3) + 2*(v*v') + 2*s*skew(v);
-% CI2B = (s^2 - dot(v,v))*eye(3) + 2*(v*v') - 2*s*skew(v);
 end
 
 

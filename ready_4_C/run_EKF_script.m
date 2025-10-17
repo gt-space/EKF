@@ -7,11 +7,13 @@ acc = sim_data.acc;
 omega = sim_data.gyro;
 ned = sim_data.NED;
 GPS = sim_data.GPS;
+
 magB = sim_data.magB;
 magI = sim_data.magI;
 baro = sim_data.baro;
 t = sim_data.time;
-N = length(t);
+N = floor(length(t)/1);
+
 % DEFINE CONSTANTS %
 we = 7.29211*10^(-5); % Earth's sidereal rotation rate [rad/s]
 % DEFINE PARAMETERS
@@ -61,12 +63,11 @@ nu_gv_mat = deg2rad(12e-3)^1*eye(3); % using rad/s
 nu_gu_mat = deg2rad(3/3600)^1*eye(3); % using rad/s
 nu_av_mat = (200e-6*9.81)^1*eye(3); % using m/s^2
 nu_au_mat = (40e-6 *9.8)^1*eye(3); % using m/s^2
-
-Q = dt*[nu_gv_mat, zeros(3,9);...
+Q = 10*dt*[nu_gv_mat, zeros(3,9);...
     zeros(3,3), nu_gu_mat, zeros(3,6);...
     zeros(3,6), nu_av_mat, zeros(3,3);...
     zeros(3,9), nu_au_mat];
-Qq = dt*[nu_gv_mat zeros(3,3);
+Qq = 10*dt*[nu_gv_mat zeros(3,3);
       zeros(3,3) nu_gu_mat];
 
 % DEFINE INITIAL CONDITIONS %
@@ -92,9 +93,9 @@ Pq0 = diag([att_unc0*ones(1,3),gbias_unc0*ones(1,3)]);
 % set up initial conditions for the filter
 
 x_plus_history = zeros(n,N);
-x_plus_history(:,1) = x0;
-P_prev = P0;
-Pq_prev = Pq0;
+x_plus_history(:,1) = single(x0);
+P_prev = single(P0);
+Pq_prev = single(Pq0);
 drogue_flag = 1;
 
 %% EKF
@@ -114,9 +115,10 @@ for i = 1:N
         fprintf("Deplying drogue at altitude %d, down speed %d.\n",x_plus(7),x_plus(10));
         drogue_flag = 0;
     end
-    if mod(i,333) == 0 % periodically check if P is PSD
+    if mod(i,100000) == 0 % periodically check if P is PSD
         P_plus = nearestPSD(P_plus);
     end
+
     P_prev = P_plus;
     Pq_prev = Pq_plus;
 end
@@ -131,32 +133,32 @@ for k = 1:N
 end
 
 figure;
-plot(t, att_error, 'LineWidth', 2);
+plot(t(1:N), att_error, 'LineWidth', 2);
 xlabel('Time (s)');
 ylabel('Attitude Error (degree)');
 title('Attitude Error');
 grid on;
 
-ned_error = zeros(size(ned));
+ned_error = zeros(size(ned,1),N);
 for i = 1:N
     ned_error(:,i) = lla2ned(x_plus_history(5:7,i),lla0)-ned(:,i);
 end
 figure
-plot(t,ned_error(1:2,:), 'LineWidth', 2)
+plot(t(1:N),ned_error(1:2,:), 'LineWidth', 2)
 xlabel('time (s)')
 ylabel('(m)')
 title('Horizontal Position Error')
 grid on;
 
 figure
-plot(t,-ned_error(3,:),'LineWidth', 2)
+plot(t(1:N),-ned_error(3,:),'LineWidth', 2)
 xlabel('time (s)')
 ylabel('altitude error (m)')
 title('Altitude Error')
 grid on;
 
 figure
-plot(t,x_plus_history(8:10,2:end)-sim_data.velI(:,1:N),'LineWidth', 2)
+plot(t(1:N),x_plus_history(8:10,2:end)-sim_data.velI(:,1:N),'LineWidth', 2)
 xlabel('time (s)')
 ylabel('velocity error (m/s)')
 title('Velocity Error')
