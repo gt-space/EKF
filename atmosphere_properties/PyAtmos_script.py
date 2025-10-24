@@ -36,7 +36,7 @@ def molar_mass(alt, t, lat, lon, swdata):
 
 
 # Set a specific time and location (time in year/month/date 24 hour time)
-t = '2025-04-25 14:00:00' # time(UTC) 
+t = '2025-01-12 14:00:00' # time(UTC) 
 lat, lon = 35.3478813171387, -117.806831359863 # latitude, longitude in [degrees]
 alt = 0 # initial altitude, in km
 n = 0 # initial step n
@@ -70,4 +70,5 @@ with open('pyatmos_output.csv', 'w') as f:
 
 print(len(altitude_list)) # prints the lenngth of the array size for confirmation
 print(alt-alt_step) # prints the max altitude for confirmation
+
 
