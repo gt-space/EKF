@@ -8,9 +8,9 @@ vn = x(8); ve = x(9); % get vel components
 
 % Eqn 7.80a
 m11 = -vn/(R_phi + h)^2*dR_phi_dphi;
-m13 = -vn/(R_phi + h)^2;
+m13 = rad2deg( -vn/(R_phi + h)^2 );
 m21 = -(ve*secd(phi))/(R_lamb + h)^2*dR_lamb_dphi + (ve*secd(phi)*tand(phi))/(R_lamb + h);
-m23 = -ve*secd(phi)/(R_lamb + h)^2;
+m23 = rad2deg( -ve*secd(phi)/(R_lamb + h)^2 );
 
 % assemble dpdot_dp matrix
 dpdot_dp = [m11, 0, m13;...

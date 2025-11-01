@@ -12,5 +12,5 @@ phidot = vn/(R_phi + h); % Eqn 7.68c
 lambdot = ve/((R_lamb + h)*cosd(phi)); % Eqn 7.68d
 hdot = -vd; % Eqn 7.68e
 
-lla_dot = [phidot; lambdot; hdot]; % assemble pdot vector
+lla_dot = [rad2deg(phidot); rad2deg(lambdot); hdot]; % assemble pdot vector
 end

@@ -3,7 +3,7 @@ function P_corrected = nearestPSD(P)
     [V, D] = eig(P);           % Ensure symmetry and decompose
     d = diag(D);
     if any(d < 1e-10) % if eigenvalue is negative or close to negative
-        fprintf('Rats! Covariance not PSD.\n');
+        fprintf('Rats! Covariance not PSD. Smallest eigenvalue is %d\n',min(d));
         d(d < 1e-10) = 1e-8;               % Clamp negative/near-zero eigenvalues
         P_corrected = zeros(size(P));
         for i = 1:length(d)
