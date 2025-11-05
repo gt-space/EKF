@@ -3,7 +3,7 @@
 % pressure in pascals
 % turns an altitude, h (meters), into a pressure, p
 function p = pressure_function(h, p_0, a)
-    p = 10^(a(1) + a(2) * h + a(3) * h^2 + a(4) * h^3 + a(5) * h^4 + a(6) * h^5 + a(7) * h^6 + a(8) * h^7)
+    p = 10.0^(a(1) + a(2) * h + a(3) * h^2 + a(4) * h^3 + a(5) * h^4 + a(6) * h^5 + a(7) * h^6 + a(8) * h^7)
 end
 
 
@@ -17,6 +17,7 @@ end
 %-5.321706e-23
 %4.813401e-28
 %-1.6294356e-33
+
 
 
 
