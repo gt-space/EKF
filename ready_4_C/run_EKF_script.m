@@ -92,7 +92,7 @@ P0 = diag([att_unc0*ones(1,3), pos_unc0*ones(1,3), vel_unc0*ones(1,3), gbias_unc
 Pq0 = diag([att_unc0*ones(1,3),gbias_unc0*ones(1,3)]);
 % set up initial conditions for the filter
 
-x_plus_history = zeros(n,N);
+x_plus_history = single(zeros(n,N));
 x_plus_history(:,1) = single(x0);
 P_prev = single(P0);
 Pq_prev = single(Pq0);
@@ -115,7 +115,7 @@ for i = 1:N
         fprintf("Deplying drogue at altitude %d, down speed %d.\n",x_plus(7),x_plus(10));
         drogue_flag = 0;
     end
-    if mod(i,100000) == 0 % periodically check if P is PSD
+    if mod(i,1000000) == 0 % periodically check if P is PSD
         P_plus = nearestPSD(P_plus);
     end
 
@@ -163,4 +163,11 @@ xlabel('time (s)')
 ylabel('velocity error (m/s)')
 title('Velocity Error')
 legend('v1','v2','v3')
+grid on;
+
+figure
+plot(t(1:N),x_plus_history(10,2:end)-sim_data.velI(3,1:N),'LineWidth', 2)
+xlabel('time (s)')
+ylabel('velocity error (m/s)')
+title('Vertical Velocity Error')
 grid on;
