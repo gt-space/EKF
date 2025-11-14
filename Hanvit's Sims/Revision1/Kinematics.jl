@@ -34,29 +34,34 @@ global γ::Float64 = 1.4 # this is only an approximation for the adiabatic index
 global Δh::Float64 = 10.0^3
 
 
-global m_dry::Float64 = 128.48
-global m_ox::Float64 = 80.85
-global m_fuel::Float64 = 40.25
-global m_gas::Float64 = 15.0
-global m_wet::Float64 = m_dry + m_ox + m_fuel + m_gas
+global m_dry_nom::Float64 = 128.48
+global m_ox_nom::Float64 = 80.85
+global m_fuel_nom::Float64 = 40.25
+global m_gas_nom::Float64 = 15.0
+global m_wet_nom::Float64 = m_dry_nom + m_ox_nom + m_fuel_nom + m_gas_nom
 # simulation body frame y is positive towards nose
 # z in CAD is x in simulation body frame
 # y in CAD is z in simulation body frame
+
+# y in CAD is x in simulation body frame
+# z in CAD is y in simulation body frame
 l_OA::Float64 = 7.23 + 0.15875
 global d_AVI::Float64 = 41.03 * 0.0254
-global r_thrust::Vector{Float64} = [0.0; -l_OA; 0.0] + [0.0; d_AVI; 0.0]
-global cg_dry::Vector{Float64} = r_thrust + [0.00127; 4.18719; 0.000762]
-global cg_wet::Vector{Float64} = r_thrust + [-0.000254; 3.681; 0.000508]
+global r_thrust::Vector{Float64} = [0.0; 0.0; -l_OA] + [0.0; 0.0; d_AVI]
+global cg_dry::Vector{Float64} = r_thrust + [0.000762; 0.00127; 4.18719]
+global cg_wet::Vector{Float64} = r_thrust + [0.000508; -0.000254; 3.681]
+
+
 global I_dry::Matrix{Float64} = [
-    3547.558 -2.4294 -0.01225;
-    -2.4294 6.3856 -1.0125;
-    -0.01225 -1.0125 3547.5412]
-    + m_dry * (dot(cg_dry, cg_dry) * I(3) - cg_dry * transpose(cg_dry))
+    3547.5412 -0.01225 -1.0125;
+    -0.01225 3547.558 -2.4294;
+    -1.0125 -2.4294 6.3856
+] + m_dry * (dot(cg_dry, cg_dry) * I(3) - cg_dry * transpose(cg_dry))
 global I_wet::Matrix{Float64} = [
-    4588.36 -2.194 -0.0119;
-    -2.194 10.1713 -0.579;
-    -0.0119 -0.579 4588.36]
-    + m_wet * (dot(cg_wet, cg_wet) * I(3) - cg_wet * transpose(cg_wet))
+    4588.36 -0.0119 -0.579;
+    -0.0119 4588.36 -2.194;
+    -0.579 -2.194 10.1713
+] + m_wet * (dot(cg_wet, cg_wet) * I(3) - cg_wet * transpose(cg_wet))
 global I_dry_inv = inv(I_dry)
 global I_wet_inv = inv(I_wet) 
 global S_ref::Float64 = 0.04047089
@@ -195,6 +200,23 @@ function get_body_aero_forces(u::Vector{Float64}, h::Float64, engine_on::Bool)
 end
 
 
+
+
+
+function rail_function(S::Vector{Float64}, t::Vector{Float64}, output, params, i::Int, j::Int)
+    r_ENU = S[1:3]
+    v_ENU = S[4:6]
+    r_grav = r_ENU + (pad_ECEF2ENU_mat * pad_r_ECEF)
+    r_norm = norm(r_grav)
+    a_grav = -(μ * r_norm^-2) * (r_grav * r_norm^-1)
+    
+
+
+
+end
+
+
+
 function phase1_kinematics(r′::Vector{Float64}, v′::Vector{Float64},
     m::Float64, DCM::Matrix{Float64}, AM::Matrix{Float64}, engine_on::Bool,
     w′::Vector{Float64}, ω_Earth::Vector{Float64}, ω̇_Earth::Vector{Float64})
@@ -207,7 +229,6 @@ function phase1_kinematics(r′::Vector{Float64}, v′::Vector{Float64},
     Στ = get_inertia_matrix_inv(m) * (m * cross(get_cg(m), a_grav) + cross(CM, F_aero) + cross(r_thrust, F_thrust))
     return Σa, Στ
 end
-
 
 
 
