@@ -78,7 +78,6 @@ global a11_9_v9::BigFloat = (220980303429416 // 3672420594609375) + ((6319601940
 global a11_10_v9::BigFloat = (1077382208769544763033 // 6028830579467940860448) + ((42001488504902501123 // 2583784534057688940192) * sqrtof6)
 
 
-
 global a12_1_v9::BigFloat = (1457432992630593801148119211375519786773130047948821068127278449366088369906297154581799875457220921288649759335254064232368444050896709221583989959285015270121988921456933238005000
 // 39076210129062923590101056700391485300304598601841278626585287226104976009559477781012524299388768324528252687407545497364304696689898469433223154794450108480183032526715415513250031)
 + ((60653289279909219220701742076252899782776129387468610116851082147611711777844378990014005965085662046217817710192191245858611197953194435888978092465800199999912611181829592480000
@@ -401,36 +400,36 @@ global a23_20_v9::BigFloat = 1.306591406499157862229641342220359676579
 global a23_21_v9::BigFloat = -0.1624883307224014710941456378572112779619
 
 
-global a24_1_v9::Bigfloat = 0.1466442426857961230207869561545353695312e-1
+global a24_1_v9::BigFloat = 0.1466442426857961230207869561545353695312e-1
 global a24_8_v9::BigFloat = 0.1898399561399124450873282966092465494738
 global a24_9_v9::BigFloat = 0.3711530651907537053995301753121055816571e-1
-global a24_10_v9::Bigfloat = 0.1316247981199510429999180335475037001729
-global a24_11_v9::Bigfloat = 0.1466622928822685713088228930531811168096
-global a24_12_v9::Bigfloat = -0.2377331162467838377764310139745632904067
-global a24_13_v9::Bigfloat = -0.2493071232192949761907468241344412740688e-1
-global a24_14_v9::Bigfloat = -0.9427777049221307692559326299260474943801e-1
-global a24_15_v9::Bigfloat = -0.2726667627690941070300686079610559177653e-1
-global a24_17_v9::Bigfloat = 0.4097659404063362064133671142526181935526e-1
-global a24_18_v9::Bigfloat = -5.538725321977494545432278985839620727708
-global a24_19_v9::Bigfloat = 4.973442175247713118429917494679987165227
-global a24_20_v9::Bigfloat = 0.8626294449189858956229369969895335684221
-global a24_21_v9::Bigfloat = -0.2250213948217893084759073334350395278429
+global a24_10_v9::BigFloat = 0.1316247981199510429999180335475037001729
+global a24_11_v9::BigFloat = 0.1466622928822685713088228930531811168096
+global a24_12_v9::BigFloat = -0.2377331162467838377764310139745632904067
+global a24_13_v9::BigFloat = -0.2493071232192949761907468241344412740688e-1
+global a24_14_v9::BigFloat = -0.9427777049221307692559326299260474943801e-1
+global a24_15_v9::BigFloat = -0.2726667627690941070300686079610559177653e-1
+global a24_17_v9::BigFloat = 0.4097659404063362064133671142526181935526e-1
+global a24_18_v9::BigFloat = -5.538725321977494545432278985839620727708
+global a24_19_v9::BigFloat = 4.973442175247713118429917494679987165227
+global a24_20_v9::BigFloat = 0.8626294449189858956229369969895335684221
+global a24_21_v9::BigFloat = -0.2250213948217893084759073334350395278429
 
 
-global a25_1_v9::Bigfloat = 0.1191252689920919922350166270042464848683e-1
-global a25_8_v9::Bigfloat = -0.6723137858130876080443132301001699876552
-global a25_9_v9::Bigfloat = 0.1801284266825688933352476317750604591900
-global a25_10_v9::Bigfloat = 0.1365689447449347163335592887842694005196
-global a25_11_v9::Bigfloat = 0.2111038393798906615990851223053694372026
-global a25_12_v9::Bigfloat = 0.7775854726244728792738759030556073621755
-global a25_13_v9::Bigfloat = 0.2362117948505939633346199470372118351743e-1
-global a25_14_v9::Bigfloat = 0.6391325607581230059121991748062989083367e-1
-global a25_15_v9::Bigfloat = 0.1197654289246164466950805226357270574198e-1
-global a25_17_v9::Bigfloat = -0.2188622145087031801816344581960035242509e-1
-global a25_18_v9::Bigfloat = 3.500218060218659348421859254969160434525
-global a25_19_v9::Bigfloat = -3.195765244251373581009030415350620096609
-global a25_20_v9::Bigfloat = -0.5994401048600148264885439684062323011428
-global a25_21_v9::Bigfloat = 0.1137710737227729377873223163880721563872e-1
+global a25_1_v9::BigFloat = 0.1191252689920919922350166270042464848683e-1
+global a25_8_v9::BigFloat = -0.6723137858130876080443132301001699876552
+global a25_9_v9::BigFloat = 0.1801284266825688933352476317750604591900
+global a25_10_v9::BigFloat = 0.1365689447449347163335592887842694005196
+global a25_11_v9::BigFloat = 0.2111038393798906615990851223053694372026
+global a25_12_v9::BigFloat = 0.7775854726244728792738759030556073621755
+global a25_13_v9::BigFloat = 0.2362117948505939633346199470372118351743e-1
+global a25_14_v9::BigFloat = 0.6391325607581230059121991748062989083367e-1
+global a25_15_v9::BigFloat = 0.1197654289246164466950805226357270574198e-1
+global a25_17_v9::BigFloat = -0.2188622145087031801816344581960035242509e-1
+global a25_18_v9::BigFloat = 3.500218060218659348421859254969160434525
+global a25_19_v9::BigFloat = -3.195765244251373581009030415350620096609
+global a25_20_v9::BigFloat = -0.5994401048600148264885439684062323011428
+global a25_21_v9::BigFloat = 0.1137710737227729377873223163880721563872e-1
 
 
 global a26_1_v9::BigFloat = 0.1184012014074604271397800922251586670558e-1
@@ -442,6 +441,7 @@ global a26_12_v9::BigFloat = 0.7679184744806335059253231677825531412084
 global a26_13_v9::BigFloat = 0.2313496869580297355994450248598930620113e-1
 global a26_14_v9::BigFloat = 0.6230605705999706953753333719939087802061e-1
 global a26_15_v9::BigFloat = 0.1157099029193866324646273674695267419004e-1
+
 
 global a26_17_v9::BigFloat = -0.2129441601042184344575923744216391881547e-1
 global a26_18_v9::BigFloat = 3.163166251075345445930896810245694869610
@@ -661,6 +661,158 @@ global bi9_26::Vector{BigFloat} = [
 ]
 
 
+function step_sol_v9!(S_0::Vector{Float64}, t_0::Vector{Float64}, output, params, Δt::Float64, f, i::Int)
+    local f_1::Vector{Float64}  = f!(S_0, t_0, output, params, i, 1)
+    
+    local t_2::Float64          = t_0[1] + (c2_v9 * Δt)
+    local S_2::Vector{Float64}  = S_0 + (a2_1_v9 * f_1 * Δt)
+    local f_2::Vector{Float64}  = f!(S_2, t_2, output, params, i, 0)
+
+    local t_3::Float64          = t_0[1] + (c3_v9 * Δt)
+    local S_3::Vector{Float64}  = S_0 + (a3_1_v9 * f_1 * Δt) + (a3_2_v9 * f_2 * Δt)
+    local f_3::Vector{Float64}  = f!(S_3, t_3, output, params, i, 0)
+
+    local t_4::Float64          = t_0[1] + (c4_v9 * Δt)
+    local S_4::Vector{Float64}  = S_0 + (a4_1_v9 * f_1 * Δt) + (a4_3_v9 * f_3 * Δt)
+    local f_4::Vector{Float64}  = f!(S_4, t_4, output, params, i, 0)
+
+    local t_5::Float64          = t_0[1] + (c5_v9 * Δt)
+    local S_5::Vector{Float64}  = S_0 + (a5_1_v9 * f_1 * Δt) + (a5_3_v9 * f_3 * Δt) + (a5_4_v9 * f_4 * Δt)
+    local f_5::Vector{Float64}  = f!(S_5, t_5, output, params, i, 0)
+
+    local t_6::Float64          = t_0[1] + (c6_v9 * Δt)
+    local S_6::Vector{Float64}  = S_0 + (a6_1_v9 * f_1 * Δt) + (a6_4_v9 * f_4 * Δt) + (a6_5_v9 * f_5 * Δt)
+    local f_6::Vector{Float64}  = f!(S_6, t_6, output, params, i, 0)
+
+    local t_7::Float64          = t_0[1] + (c7_v9 * Δt)
+    local S_7::Vector{Float64}  = S_0 + (a7_1_v9 * f_1 * Δt) + (a7_4_v9 * f_4 * Δt) + (a7_5_v9 * f_5 * Δt) + (a7_6_v9 * f_6 * Δt)
+    local f_7::Vector{Float64}  = f!(S_7, t_7, output, params, i, 0)
+
+    local t_8::Float64          = t_0[1] + (c8_v9 * Δt)
+    local S_8::Vector{Float64}  = S_0 + (a8_1_v9 * f_1 * Δt) + (a8_6_v9 * f_6 * Δt) + (a8_7_v9 * f_7 * Δt)
+    local f_8::Vector{Float64}  = f!(S_8, t_8, output, params, i, 8)
+
+    local t_9::Float64          = t_0[1] + (c9_v9 * Δt)
+    local S_9::Vector{Float64}  = S_0 + (a9_1_v9 * f_1 * Δt) + (a9_6_v9 * f_6 * Δt) + (a9_7_v9 * f_7 * Δt) + (a9_8_v9 * f_8 * Δt)
+    local f_9::Vector{Float64}  = f!(S_9, t_9, output, params, i, 9)
+
+    local t_10::Float64         = t_0[1] + (c10_v9 * Δt)
+    local S_10::Vector{Float64} = S_0 + (a10_1_v9 * f_1 * Δt) + (a10_6_v9 * f_6 * Δt) + (a10_7_v9 * f_7 * Δt) + (a10_8_v9 * f_8 * Δt)
+        + (a10_9_v9 * f_9 * Δt)
+    local f_10::Vector{Float64} = f!(S_10, t_10, output, params, i, 10)
+
+    local t_11::Float64         = t_0[1] + (c11_v9 * Δt)
+    local S_11::Vector{Float64} = S_0 + (a11_1_v9 * f_1 * Δt) + (a11_6_v9 * f_6 * Δt) + (a11_7_v9 * f_7 * Δt) + (a11_8_v9 * f_8 * Δt)
+        + (a11_9_v9 * f_9 * Δt) + (a11_10_v9 * f_10 * Δt)
+    local f_11::Vector{Float64} = f!(S_11, t_11, output, params, i, 11)
+
+    local t_12::Float64         = t_0[1] + (c12_v9 * Δt)
+    local S_12::Vector{Float64} = S_0 + (a12_1_v9 * f_1 * Δt) + (a12_6_v9 * f_6 * Δt) + (a12_7_v9 * f_7 * Δt) + (a12_8_v9 * f_8 * Δt)
+        + (a12_9_v9 * f_9 * Δt) + (a12_10_v9 * f_10 * Δt) + (a12_11_v9 * f_11 * Δt)
+    local f_12::Vector{Float64} = f!(S_12, t_12, output, params, i, 12)
+
+    local t_13::Float64         = t_0[1] + (c13_v9 * Δt)
+    local S_13::Vector{Float64} = S_0 + (a13_1_v9 * f_1 * Δt) + (a13_6_v9 * f_6 * Δt) + (a13_7_v9 * f_7 * Δt) + (a13_8_v9 * f_8 * Δt)
+        + (a13_9_v9 * f_9 * Δt) + (a13_10_v9 * f_10 * Δt) + (a13_11_v9 * f_11 * Δt) + (a13_12_v9 * f_12 * Δt)
+    local f_13::Vector{Float64} = f!(S_13, t_13, output, params, i, 13)
+
+    local t_14::Float64         = t_0[1] + (c14_v9 * Δt)
+    local S_14::Vector{Float64} = S_0 + (a14_1_v9 * f_1 * Δt) + (a14_6_v9 * f_6 * Δt) + (a14_7_v9 * f_7 * Δt) + (a14_8_v9 * f_8 * Δt)
+        + (a14_9_v9 * f_9 * Δt) + (a14_10_v9 * f_10 * Δt) + (a14_11_v9 * f_11 * Δt) + (a14_12_v9 * f_12 * Δt) + (a14_13_v9 * f_13 * Δt)
+    local f_14::Vector{Float64} = f!(S_14, t_14, output, params, i, 14)
+
+    local t_15::Float64         = t_0[1] + (c15_v9 * Δt)
+    local S_15::Vector{Float64} = S_0 + (a15_1_v9 * f_1 * Δt) + (a15_6_v9 * f_6 * Δt) + (a15_7_v9 * f_7 * Δt) + (a15_8_v9 * f_8 * Δt)
+        + (a15_9_v9 * f_9 * Δt) + (a15_10_v9 * f_10 * Δt) + (a15_11_v9 * f_11 * Δt) + (a15_12_v9 * f_12 * Δt) + (a15_13_v9 * f_13 * Δt)
+        + (a15_14_v9 * f_14 * Δt)
+    local f_15::Vector{Float64} = f!(S_15, t_15, output, params, i, 15)
+
+    local t_16::Float64         = t_0[1] + (c16_v9 * Δt)
+    local S_16::Vector{Float64} = S_0 + (a16_1_v9 * f_1 * Δt) + (a16_6_v9 * f_6 * Δt) + (a16_7_v9 * f_7 * Δt) + (a16_8_v9 * f_8 * Δt)
+        + (a16_9_v9 * f_9 * Δt) + (a16_10_v9 * f_10 * Δt) + (a16_11_v9 * f_11 * Δt) + (a16_12_v9 * f_12 * Δt) + (a16_13_v9 * f_13 * Δt) 
+    local f_16::Vector{Float64} = f!(S_16, t_16, output, params, i, 0)
+
+
+    # 9th order propagation stage:
+    local ΔS::Vector{Float64} = ((b1_v9 * f_1) + (b8_v9 * f_8) + (b9_v9 * f_9) + (b10_v9 * f_10) + (b11_v9 * f_11) + (b12_v9 * f_12)
+        + (b13_v9 * f_13) + (b14_v9 * f_14) + (b15_v9 * f_15))
+    # 8th order error checking stage:
+    local ΔŜ::Vector{Float64} = ((b̂1_v9 * f_1) + (b̂8_v9 * f_8) + (b̂9_v9 * f_9) + (b̂10_v9 * f_10) + (b̂11_v9 * f_11) + (b̂12_v9 * f_12)
+        + (b̂13_v9 * f_13) + (b̂16_v9 * f_15))
+    # error:
+    local ε::Vector{Float64} = Δt * (ΔS - ΔŜ)
+    # state and time update:
+    S_0[:] += Δt * ΔS
+    t_0[1] += Δt 
+
+
+    # interpolatant calculations:
+    local t_17::Float64         = t_0[1] + (c17_v9 * Δt)
+    local S_17::Vector{Float64} = S_0 + (a17_1_v9 * f_1 * Δt) + (a17_8_v9 * f_8 * Δt) + (a17_9_v9 * f_9 * Δt) + (a17_10_v9 * f_10 * Δt)
+        + (a17_11_v9 * f_11 * Δt) + (a17_12_v9 * f_12 * Δt) + (a17_13_v9 * f_13 * Δt) + (a17_14_v9 * f_14 * Δt) + (a17_15_v9 * f_15 * Δt)
+    local f_17::Vector{Float64} = f!(S_17, t_17, output, params, i, 17)
+
+    local t_18::Float64         = t_0[1] + (c18_v9 * Δt)
+    local S_18::Vector{Float64} = S_0 + (a18_1_v9 * f_1 * Δt) + (a18_8_v9 * f_8 * Δt) + (a18_9_v9 * f_9 * Δt) + (a18_10_v9 * f_10 * Δt)
+        + (a18_11_v9 * f_11 * Δt) + (a18_12_v9 * f_12 * Δt) + (a18_13_v9 * f_13 * Δt) + (a18_14_v9 * f_14 * Δt) + (a18_15_v9 * f_15 * Δt)
+        + (a18_17_v9 * f_17 * Δt)
+    local f_18::Vector{Float64} = f!(S_18, t_18, output, params, i, 18)
+    
+    local t_19::Float64         = t_0[1] + (c19_v9 * Δt)
+    local S_19::Vector{Float64} = S_0 + (a19_1_v9 * f_1 * Δt) + (a19_8_v9 * f_8 * Δt) + (a19_9_v9 * f_9 * Δt) + (a19_10_v9 * f_10 * Δt)
+        + (a19_11_v9 * f_11 * Δt) + (a19_12_v9 * f_12 * Δt) + (a19_13_v9 * f_13 * Δt) + (a19_14_v9 * f_14 * Δt) + (a19_15_v9 * f_15 * Δt)
+        + (a19_17_v9 * f_17 * Δt) + (a19_18_v9 * f_18 * Δt)
+    local f_19::Vector{Float64} = f!(S_19, t_19, output, params, i, 19)
+
+    local t_20::Float64         = t_0[1] + (c20_v9 * Δt)
+    local S_20::Vector{Float64} = S_0 + (a20_1_v9 * f_1 * Δt) + (a20_8_v9 * f_8 * Δt) + (a20_9_v9 * f_9 * Δt) + (a20_10_v9 * f_10 * Δt)
+        + (a20_11_v9 * f_11 * Δt) + (a20_12_v9 * f_12 * Δt) + (a20_13_v9 * f_13 * Δt) + (a20_14_v9 * f_14 * Δt) + (a20_15_v9 * f_15 * Δt)
+        + (a20_17_v9 * f_17 * Δt) + (a20_18_v9 * f_18 * Δt) + (a20_19_v9 * f_19 * Δt)
+    local f_20::Vector{Float64} = f!(S_20, t_20, output, params, i, 20)
+    
+    local t_21::Float64         = t_0[1] + (c21_v9 * Δt)
+    local S_21::Vector{Float64} = S_0 + (a21_1_v9 * f_1 * Δt) + (a21_8_v9 * f_8 * Δt) + (a21_9_v9 * f_9 * Δt) + (a21_10_v9 * f_10 * Δt)
+        + (a21_11_v9 * f_11 * Δt) + (a21_12_v9 * f_12 * Δt) + (a21_13_v9 * f_13 * Δt) + (a21_14_v9 * f_14 * Δt) + (a21_15_v9 * f_15 * Δt)
+        + (a21_17_v9 * f_17 * Δt) + (a21_18_v9 * f_18 * Δt) + (a21_19_v9 * f_19 * Δt) + (a21_20_v9 * f_20 * Δt)
+    local f_21::Vector{Float64} = f!(S_21, t_21, output, params, i, 21)
+
+    local t_22::Float64         = t_0[1] + (c22_v9 * Δt)
+    local S_22::Vector{Float64} = S_0 + (a22_1_v9 * f_1 * Δt) + (a22_8_v9 * f_8 * Δt) + (a22_9_v9 * f_9 * Δt) + (a22_10_v9 * f_10 * Δt)
+        + (a22_11_v9 * f_11 * Δt) + (a22_12_v9 * f_12 * Δt) + (a22_13_v9 * f_13 * Δt) + (a22_14_v9 * f_14 * Δt) + (a22_15_v9 * f_15 * Δt)
+        + (a22_17_v9 * f_17 * Δt) + (a22_18_v9 * f_18 * Δt) + (a22_19_v9 * f_19 * Δt) + (a22_20_v9 * f_20 * Δt) + (a22_21_v9 * f_21 * Δt)
+    local f_22::Vector{Float64} = f!(S_22, t_22, output, params, i, 22)
+
+    local t_23::Float64         = t_0[1] + (c23_v9 * Δt)
+    local S_23::Vector{Float64} = S_0 + (a23_1_v9 * f_1 * Δt) + (a23_8_v9 * f_8 * Δt) + (a23_9_v9 * f_9 * Δt) + (a23_10_v9 * f_10 * Δt)
+        + (a23_11_v9 * f_11 * Δt) + (a23_12_v9 * f_12 * Δt) + (a23_13_v9 * f_13 * Δt) + (a23_14_v9 * f_14 * Δt) + (a23_15_v9 * f_15 * Δt)
+        + (a23_17_v9 * f_17 * Δt) + (a23_18_v9 * f_18 * Δt) + (a23_19_v9 * f_19 * Δt) + (a23_20_v9 * f_20 * Δt) + (a23_21_v9 * f_21 * Δt)
+    local f_23::Vector{Float64} = f!(S_23, t_23, output, params, i, 23)
+
+    local t_24::Float64         = t_0[1] + (c24_v9 * Δt)
+    local S_24::Vector{Float64} = S_0 + (a24_1_v9 * f_1 * Δt) + (a24_8_v9 * f_8 * Δt) + (a24_9_v9 * f_9 * Δt) + (a24_10_v9 * f_10 * Δt)
+        + (a24_11_v9 * f_11 * Δt) + (a24_12_v9 * f_12 * Δt) + (a24_13_v9 * f_13 * Δt) + (a24_14_v9 * f_14 * Δt) + (a24_15_v9 * f_15 * Δt)
+        + (a24_17_v9 * f_17 * Δt) + (a24_18_v9 * f_18 * Δt) + (a24_19_v9 * f_19 * Δt) + (a24_20_v9 * f_20 * Δt) + (a24_21_v9 * f_21 * Δt)
+    local f_24::Vector{Float64} = f!(S_24, t_24, output, params, i, 24)
+
+    local t_25::Float64         = t_0[1] + (c25_v9 * Δt)
+    local S_25::Vector{Float64} = S_0 + (a25_1_v9 * f_1 * Δt) + (a25_8_v9 * f_8 * Δt) + (a25_9_v9 * f_9 * Δt) + (a25_10_v9 * f_10 * Δt)
+        + (a25_11_v9 * f_11 * Δt) + (a25_12_v9 * f_12 * Δt) + (a25_13_v9 * f_13 * Δt) + (a25_14_v9 * f_14 * Δt) + (a25_15_v9 * f_15 * Δt)
+        + (a25_17_v9 * f_17 * Δt) + (a25_18_v9 * f_18 * Δt) + (a25_19_v9 * f_19 * Δt) + (a25_20_v9 * f_20 * Δt) + (a25_21_v9 * f_21 * Δt)
+    local f_25::Vector{Float64} = f!(S_25, t_25, output, params, i, 25)
+
+    local t_26::Float64         = t_0[1] + (c26_v9 * Δt)
+    local S_26::Vector{Float64} = S_0 + (a26_1_v9 * f_1 * Δt) + (a26_8_v9 * f_8 * Δt) + (a26_9_v9 * f_9 * Δt) + (a26_10_v9 * f_10 * Δt)
+        + (a26_11_v9 * f_11 * Δt) + (a26_12_v9 * f_12 * Δt) + (a26_13_v9 * f_13 * Δt) + (a26_14_v9 * f_14 * Δt) + (a26_15_v9 * f_15 * Δt)
+        + (a26_17_v9 * f_17 * Δt) + (a26_18_v9 * f_18 * Δt) + (a26_19_v9 * f_19 * Δt) + (a26_20_v9 * f_20 * Δt) + (a26_21_v9 * f_21 * Δt)
+    local f_26::Vector{Float64} = f!(S_26, t_26, output, params, i, 26)
+
+    # store interpolant
+    output[1][:, 1:19, i] = [f_1 f_8 f_9 f_10 f_11 f_12 f_13 f_14 f_15 f_17 f_18 f_19 f_20 f_21 f_22 f_23 f_24 f_25 f_26] 
+
+    return ϵ
+end
+
+
 function interpolate_embed9(u::Float64, f_mat::Matrix{Float64})
     u_vec::Vector{Float64} = [u; u^2; u^3; u^4; u^5; u^6; u^7; u^8; u^9]
     w_vec::Vector{Float64} = [
@@ -688,12 +840,6 @@ function interpolate_embed9(u::Float64, f_mat::Matrix{Float64})
 end
 
 
-function step_sol_v9!(S_i, t_i, output, params, Δt, f, i)
-
-    
-
-
-end
 
 
 
