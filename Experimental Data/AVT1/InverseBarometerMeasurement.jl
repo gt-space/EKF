@@ -42,13 +42,34 @@ end
 # only works to 115 km
 function p2alt(p::Float32)
     local h::Float32
+    if (p < 105240.625f0) && (p > 100510.31f0)
+        foo(h) = poly7(h, α) - log10(p)
+        a::Float32 = -200.0
+        b::Float32 = 200.0
+        local c::Float32
+        for i = 1:16
+            c = 0.5 * (a + b)
+            h = c
+            if abs(b - a) < 10.0^-5
+                break
+            end
+            if foo(c) == 0.0
+                break
+            elseif foo(c) > 0.0
+                a = c
+            elseif foo(c) < 0.0
+                b = c
+            end
+        end
+    else
     h = invert_measurement_guess(p)
     logp = log10(p)
-    for i = 1:16
-        Δh::Float32 = (poly7(h, α) - logp) * poly7deriv(h, α)^-1
-        h -= Δh
-        if abs(Δh) < 10.0^-5
-            break
+        for i = 1:16
+            Δh::Float32 = (poly7(h, α) - logp) * poly7deriv(h, α)^-1
+            h -= Δh
+            if abs(Δh) < 10.0^-5
+                break
+            end
         end
     end
     return h
@@ -85,7 +106,7 @@ lines!(ax3, p_sample, Δh_rel)
 fig
 
 
-#@benchmark p2alt($(Float32(117.0rand() - 2.0)))
+@benchmark p2alt($(Float32(117.0rand() - 2.0)))
 =#
 
 
