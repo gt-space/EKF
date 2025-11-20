@@ -1,8 +1,3 @@
-#=
-using BenchmarkTools
-using GLMakie
-=#
-
 global α::Vector{Float32} = [
     5.0122185;
     -4.9929004e-5;
@@ -46,37 +41,72 @@ end
 
 # only works to 115 km
 function p2alt(p::Float32)
-    h::Float32 = invert_measurement_guess(p)
-    logp = log10(p)
-    for i = 1:32
-        Δh::Float32 = (poly7(h, α) - logp) * poly7deriv(h, α)^-1
-        h -= Δh
-        if abs(Δh) <= 10.0^-5
-            break
+    local h::Float32
+    if (p < 105240.625f0) && (p > 100510.31f0)
+        foo(h) = poly7(h, α) - log10(p)
+        a::Float32 = -200.0
+        b::Float32 = 200.0
+        local c::Float32
+        for i = 1:16
+            c = 0.5 * (a + b)
+            h = c
+            if abs(b - a) < 10.0^-5
+                break
+            end
+            if foo(c) == 0.0
+                break
+            elseif foo(c) > 0.0
+                a = c
+            elseif foo(c) < 0.0
+                b = c
+            end
+        end
+    else
+        h = invert_measurement_guess(p)
+        logp = log10(p)
+        for i = 1:16
+            Δh::Float32 = (poly7(h, α) - logp) * poly7deriv(h, α)^-1
+            h -= Δh
+            if abs(Δh) < 10.0^-5
+                break
+            end
         end
     end
     return h
 end
 
+
 #=
-test case
-h_sample = Float32.(collect(range(-20.0, 115.0, length = 512000)) * 10.0^3)
+#test case
+using BenchmarkTools
+using GLMakie
+
+
+h_sample = Float32.(collect(range(-2.0, 115.0, length = 512000)) * 10.0^3)
 p_sample = get_pressure.(h_sample, (α, ))
 predicted_h = p2alt.(p_sample)
 Δh = h_sample - predicted_h
-println(maximum(Δh ./ h_sample))
+Δh_rel = Δh ./ h_sample
 
 
 fig = Figure()
-ax = Axis(fig[1, 1], title = "Barometer Function", xlabel = "Pressure (Pascal)", ylabel = "height (metres)")
-lines!(ax, p_sample, h_sample, label = "True Height")
-lines!(ax, p_sample, predicted_h, label = "Predicted Height")
+ax = Axis(fig[1, 1:2], title = "Barometer Function", xlabel = "height (metres)", ylabel = "Pressure (Pascal)")
+lines!(ax, h_sample, p_sample, label = "True Height")
+lines!(ax, predicted_h, p_sample, label = "Predicted Height")
 Legend(fig, ax)
+
+
+ax2 = Axis(fig[2, 1], title = "Absolute Altitude Estimation Error", xlabel = "Pressure", ylabel = "Absolute Error (metres)")
+lines!(ax2, p_sample, Δh)
 fig
 
 
-@benchmark p2alt($(get_pressure(Float32(((rand()*135.0) - 20.0) * 10.0^3), α)))
-=#
+ax3 = Axis(fig[2, 2], title = "Relative Altitude Estimation Error", xlabel = "Pressure", ylabel = "Relative Error")
+lines!(ax3, p_sample, Δh_rel)
+fig
 
+
+@benchmark p2alt($(Float32(117.0rand() - 2.0)))
+=#
 
 
