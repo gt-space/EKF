@@ -6,7 +6,7 @@ using DataFrames
 using GLMakie
 
 
-include("InverseAltimeter.jl")
+include("InverseBarometerMeasurement.jl")
 
 
 function fit_constant(α, data)
@@ -222,4 +222,5 @@ scatter!(ax, h_baro, get_pressure.(h_baro, (Float32.([5.0122185; -4.9929004e-5; 
 Legend(fig, ax)
 fig
 =#
+
 
