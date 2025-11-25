@@ -13,7 +13,7 @@ end
 
 
 # must call with y_a and y_b having different signs
-function ITP(a::Float64, b::Float64, f::Function; y_a::Float64 = f(a), y_b::Float64 = f(b), n::Integer = 64, ε::Float64 = 10.0^-13, κ_1::Float64 = 0.1, κ_2::Float64 = 0.98 * (1.0 + Base.MathConstants.golden))
+function ITP(a::Float64, b::Float64, f::Function; y_a::Float64 = f(a), y_b::Float64 = f(b), n::Integer = 128, ε::Float64 = 10.0^-13, κ_1::Float64 = 0.1, κ_2::Float64 = 0.98 * (1.0 + Base.MathConstants.golden))
     invert::Bool = false
     # assumes the function f(x) is increasing, if it's decreasing we can just find the zeroes of -f(x)
     if y_a > y_b
@@ -72,7 +72,7 @@ function ITP(a::Float64, b::Float64, f::Function; y_a::Float64 = f(a), y_b::Floa
     end
     return a, b
 end
-function ITP(a::Float64, b::Float64, f::Function, p; y_a::Float64 = f(a, p), y_b::Float64 = f(b, p), n::Integer = 64, ε::Float64 = 10.0^-13, κ_1::Float64 = 0.1, κ_2::Float64 = 0.98 * (1.0 + Base.MathConstants.golden))
+function ITP(a::Float64, b::Float64, f::Function, p; y_a::Float64 = f(a, p), y_b::Float64 = f(b, p), n::Integer = 128, ε::Float64 = 10.0^-13, κ_1::Float64 = 0.1, κ_2::Float64 = 0.98 * (1.0 + Base.MathConstants.golden))
     invert::Bool = false
     if y_a > y_b
         invert = true

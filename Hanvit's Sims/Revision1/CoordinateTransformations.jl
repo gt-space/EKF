@@ -2,15 +2,13 @@ using LinearAlgebra
 using AstroTime
 
 
-global a::Float64 = 6378136.3   # semi-major axis
-global f::Float64 = (298.257)^-1  # flattening
-global b::Float64 = a * (1.0 - f) # semi-minor axis
-global e::Float64 = sqrt(1.0 - (b^2 / a^2)) # first eccentricity
-global ϵ::Float64 = 10.0^-12 # allowable error
-global i_max = 100 # maximum allowable iterations before truncation
+global a_Earth::Float64 = 6378136.3   # semi-major axis
+global f_Earth::Float64 = (298.257)^-1  # flattening
+global b_Earth::Float64 = a_Earth * (1.0 - f_Earth) # semi-minor axis
+global e_first::Float64 = sqrt(1.0 - (b_Earth^2 * a_Earth^-2)) # first eccentricity
 
 
-global ω_0::Float64 = 7.292115 * 10^-5
+global ω_Earth::Float64 = 7.292115 * 10^-5
 global r_syn::Float64 = 1.00273781191135448
 global T_syn::Float64 = 86400.002
 # Secular terms from Laskar's NGT
@@ -37,7 +35,7 @@ function get_ωα_ECEF(t::Float64, Δτ_iJ2k::Float64, Δτ_iY::Float64)
 
     ψ::Float64 = dot(ψ_sec, secpol) + dot(ψ_ip, odds) + dot(ψ_oop, evens)
     θ::Float64 = dot(Θ_sec, secpol) + dot(Θ_ip, evens) + dot(Θ_oop, odds)
-    φ::Float64 = ω_0 * (t + Δτ_iY - ((T_syn * r_syn^-1) * floor(t + Δτ_iY * r_syn * T_syn^-1)))
+    φ::Float64 = ω_Earth * (t + Δτ_iY - ((T_syn * r_syn^-1) * floor(t + Δτ_iY * r_syn * T_syn^-1)))
     ψ̇::Float64 = dot(ψ_sec, secpol′) * (10.0^4 * 365.25 * 86400.0)^-1 + dot(ω_nut .* ψ_ip, evens) - dot(ω_nut .* ψ_oop, odds)
     θ̇::Float64 = dot(Θ_sec, secpol′) * (10.0^4 * 365.25 * 86400.0)^-1 - dot(ω_nut .* Θ_ip, odds) + dot(ω_nut .* Θ_oop, evens)
     ψ̇̇::Float64 = dot(ψ_sec, secpol′′) * (10.0^4 * 365.25 * 86400.0)^-2 - dot(ω_nut.^2 .* ψ_ip, odds) - dot(ω_nut.^2 .* ψ_oop, evens)
@@ -49,32 +47,32 @@ function get_ωα_ECEF(t::Float64, Δτ_iJ2k::Float64, Δτ_iY::Float64)
     cψ::Float64 = cos(ψ)
     sψ::Float64 = sin(ψ)
     ω::Vector{Float64} = [
-        (ω_0 * sθ * sψ) + (θ̇ * cψ);
-        (-ω_0 * sθ * cψ) + (θ̇ * sψ);
-        (ω_0 * cθ) + ψ̇ 
+        (ω_Earth * sθ * sψ) + (θ̇ * cψ);
+        (-ω_Earth * sθ * cψ) + (θ̇ * sψ);
+        (ω_Earth * cθ) + ψ̇ 
     ]
     α::Vector{Float64} = [
-        (θ̇ * ω_0 * cθ * sψ) + (θ̇̇ * cψ) + (ψ̇ * ((ω_0 * sθ * cψ) - (θ̇ * sψ)));
-        (-θ̇ * ω_0 * cθ * cψ) + (θ̇̇ * sψ) + (ψ̇ * ((ω_0 * sθ * sψ) + (θ̇ * cψ)));
-        (-θ̇ * ω_0 * sθ) + ψ̇̇
+        (θ̇ * ω_Earth * cθ * sψ) + (θ̇̇ * cψ) + (ψ̇ * ((ω_Earth * sθ * cψ) - (θ̇ * sψ)));
+        (-θ̇ * ω_Earth * cθ * cψ) + (θ̇̇ * sψ) + (ψ̇ * ((ω_Earth * sθ * sψ) + (θ̇ * cψ)));
+        (-θ̇ * ω_Earth * sθ) + ψ̇̇
     ]
     return ω, α
 end
 
 
 # geo_lla = [φ; λ; h]
-function lla2ecef(φ::Float64; λ::Float64, h::Float64)
-    local N::Float64 = a * √(1.0 - (e^2 * sin(φ)^2))^-1
+function lla2ecef(φ::Float64, λ::Float64, h::Float64)
+    local N::Float64 = a_Earth * √(1.0 - (e_first^2 * sin(φ)^2))^-1
     local r_ECEF::Vector{Float64} = [
     (N + h) * cos(φ) * cos(λ);
     (N + h) * cos(φ) * sin(λ);
-    ((b^2 * a^-2) * N + h) * sin(φ)
+    ((b_Earth^2 * a_Earth^-2) * N + h) * sin(φ)
     ]
     return r_ECEF
 end
 
 
-function ecef2lla(r::Vector{Float64})
+function ecef2lla(r::Vector{Float64}, n_max::Integer = 64, ε::Float64 = 10.0^-13)
     local p::Float64 = √(r[1]^2 + r[2]^2)
     local z_norm::Float64 = abs(r[3])
     local φ::Float64
@@ -84,7 +82,7 @@ function ecef2lla(r::Vector{Float64})
         if r[3] == 0.0
             φ = 0.0
             λ = 0.0
-            h = -b
+            h = -b_Earth
         else
             if r[3] > 0
                 φ = 0.5π
@@ -92,18 +90,18 @@ function ecef2lla(r::Vector{Float64})
                 φ = -0.5π
             end
             λ = 0.0
-            h = z_norm - b
+            h = z_norm - b_Earth
         end
     elseif r[3] == 0.0
         φ = 0.0
         λ = atan(r[2], r[1])
-        h = p - a
+        h = p - a_Earth
     else
         # in the non-trivial case, we are essentially solving Bowring's formula, but parameterized into a more efficient quartic equation
         # this saves computation time by avoiding unnecessary expensive calls to transcendental functions
         # to avoid the issue of the Newton-Raphson solver converging on the incorrect root, we must first initialize the iteration variable, t, for a number of different circumstances: 
-        local c::Float64 = a * e^2
-        local e′::Float64 = √(1.0 - e^2)
+        local c::Float64 = a_Earth * e_first^2
+        local e′::Float64 = √(1.0 - e_first^2)
         local z′::Float64 = e′ * z_norm
         local u::Float64 = 2.0 * (z′ - c)
         local v::Float64 = 2.0 * (z′ + c)
@@ -122,10 +120,10 @@ function ecef2lla(r::Vector{Float64})
         else
             t = t_1
         end
-        for i = 1:i_max
+        for i = 1:n_max
             Δt = (p - (p * t^4 + u * t^3 + v * t)) * (4.0 * p * t^3 + 3.0 * u * t^2 + v)^-1
             t += Δt
-            if abs(Δt) <= ϵ
+            if abs(Δt) <= ε
                 break
             end
         end
@@ -134,7 +132,7 @@ function ecef2lla(r::Vector{Float64})
         else
             φ = -atan(1.0 - t^2, 2.0 * e′ * t)
         end
-        h = ((2.0 * p * e′ * t) + (z_norm * (1.0 - t^2)) - (a * e′ * (1.0 + t^2))) * √((1.0 + t^2)^2 - (4.0 * e^2 * t^2))^-1
+        h = ((2.0 * p * e′ * t) + (z_norm * (1.0 - t^2)) - (a_Earth * e′ * (1.0 + t^2))) * √((1.0 + t^2)^2 - (4.0 * e_first^2 * t^2))^-1
         λ = atan(r[2], r[1])
     end
     if λ < 0
@@ -143,19 +141,7 @@ function ecef2lla(r::Vector{Float64})
     geo_lla = [φ; λ; h]
 end
 
-
-function zyx2q(ψ::Float64, θ::Float64, φ::Float64)
-    i::T = cos(ψ / 2) * cos(θ / 2) * sin(φ / 2) - sin(ψ / 2) * sin(θ / 2) * cos(φ / 2)
-    j::T = cos(ψ / 2) * sin(θ / 2) * cos(φ / 2) + sin(ψ / 2) * cos(θ / 2) * sin(φ / 2)
-    k::T = sin(ψ / 2) * cos(θ / 2) * cos(φ / 2) - cos(ψ / 2) * sin(θ / 2) * sin(φ / 2)
-    r::T = cos(ψ / 2) * cos(θ / 2) * cos(φ / 2) + sin(ψ / 2) * sin(θ / 2) * sin(φ / 2)
-    q = Quaternion(i, j, k, r)
-    q /= abs(q)
-    return q
-end
-
-
-
+#=
 #year month day hour minute second
 current_epoch = Epoch{UniversalTime}(2026, 1, 10, 12, 00, 0.0)
 reference_epoch = UT1Epoch(0.0seconds, origin = :j2000)
@@ -163,6 +149,6 @@ year_epoch = Epoch{UniversalTime}(2000, 1, 1, 0, 0, 0.0)
 Δτ_iJ2k = value(seconds(current_epoch - reference_epoch))
 Δτ_iY = value(seconds(current_epoch - year_epoch))
 get_ωα_ECEF(0.0, Δτ_iJ2k, Δτ_iY)
-
+=#
 
 

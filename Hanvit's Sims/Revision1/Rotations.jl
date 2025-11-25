@@ -3,6 +3,12 @@ using LinearAlgebra
 
 # scalar last formalism
 # quaternion is double precision length 4 vector
+# AM is world -> body
+# DCM is body -> world
+# DCM = AM^-1 = AM^T
+# ω_I = AM^T ω = DCM ω
+# ω is body frame angular velocity
+# ω_I is world angular velocity
 
 
 function get_cross_eqv(x::Vector{Float64})
@@ -139,14 +145,6 @@ function zyx2DCM(angles::Tuple{Float64, Float64, Float64})
     ]
     return DCM
 end
-
-
-# AM is world -> body
-# DCM is body -> world
-# DCM = AM^-1 = AM^T
-# ω_I = AM^T ω = DCM ω
-# ω is body frame angular velocity
-# ω_I is world angular velocity
 
 
 #=

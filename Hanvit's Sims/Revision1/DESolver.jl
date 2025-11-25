@@ -661,8 +661,8 @@ global bi9_26::Vector{BigFloat} = [
 ]
 
 
-function step_sol_v9!(S_0::Vector{Float64}, t_0::Vector{Float64}, output, params, Δt::Float64, f, i::Int)
-    local f_1::Vector{Float64}  = f!(S_0, t_0, output, params, i, 1)
+function step_sol_v9!(S_0::Vector{Float64}, t_0::Vector{Float64}, output, params, Δt::Float64, f!, i::Int)
+    local f_1::Vector{Float64}  = f!(S_0, t_0[1], output, params, i, 1)
     
     local t_2::Float64          = t_0[1] + (c2_v9 * Δt)
     local S_2::Vector{Float64}  = S_0 + (a2_1_v9 * f_1 * Δt)
@@ -690,42 +690,42 @@ function step_sol_v9!(S_0::Vector{Float64}, t_0::Vector{Float64}, output, params
 
     local t_8::Float64          = t_0[1] + (c8_v9 * Δt)
     local S_8::Vector{Float64}  = S_0 + (a8_1_v9 * f_1 * Δt) + (a8_6_v9 * f_6 * Δt) + (a8_7_v9 * f_7 * Δt)
-    local f_8::Vector{Float64}  = f!(S_8, t_8, output, params, i, 8)
+    local f_8::Vector{Float64}  = f!(S_8, t_8, output, params, i, 2)
 
     local t_9::Float64          = t_0[1] + (c9_v9 * Δt)
     local S_9::Vector{Float64}  = S_0 + (a9_1_v9 * f_1 * Δt) + (a9_6_v9 * f_6 * Δt) + (a9_7_v9 * f_7 * Δt) + (a9_8_v9 * f_8 * Δt)
-    local f_9::Vector{Float64}  = f!(S_9, t_9, output, params, i, 9)
+    local f_9::Vector{Float64}  = f!(S_9, t_9, output, params, i, 3)
 
     local t_10::Float64         = t_0[1] + (c10_v9 * Δt)
     local S_10::Vector{Float64} = S_0 + (a10_1_v9 * f_1 * Δt) + (a10_6_v9 * f_6 * Δt) + (a10_7_v9 * f_7 * Δt) + (a10_8_v9 * f_8 * Δt)
         + (a10_9_v9 * f_9 * Δt)
-    local f_10::Vector{Float64} = f!(S_10, t_10, output, params, i, 10)
+    local f_10::Vector{Float64} = f!(S_10, t_10, output, params, i, 4)
 
     local t_11::Float64         = t_0[1] + (c11_v9 * Δt)
     local S_11::Vector{Float64} = S_0 + (a11_1_v9 * f_1 * Δt) + (a11_6_v9 * f_6 * Δt) + (a11_7_v9 * f_7 * Δt) + (a11_8_v9 * f_8 * Δt)
         + (a11_9_v9 * f_9 * Δt) + (a11_10_v9 * f_10 * Δt)
-    local f_11::Vector{Float64} = f!(S_11, t_11, output, params, i, 11)
+    local f_11::Vector{Float64} = f!(S_11, t_11, output, params, i, 5)
 
     local t_12::Float64         = t_0[1] + (c12_v9 * Δt)
     local S_12::Vector{Float64} = S_0 + (a12_1_v9 * f_1 * Δt) + (a12_6_v9 * f_6 * Δt) + (a12_7_v9 * f_7 * Δt) + (a12_8_v9 * f_8 * Δt)
         + (a12_9_v9 * f_9 * Δt) + (a12_10_v9 * f_10 * Δt) + (a12_11_v9 * f_11 * Δt)
-    local f_12::Vector{Float64} = f!(S_12, t_12, output, params, i, 12)
+    local f_12::Vector{Float64} = f!(S_12, t_12, output, params, i, 6)
 
     local t_13::Float64         = t_0[1] + (c13_v9 * Δt)
     local S_13::Vector{Float64} = S_0 + (a13_1_v9 * f_1 * Δt) + (a13_6_v9 * f_6 * Δt) + (a13_7_v9 * f_7 * Δt) + (a13_8_v9 * f_8 * Δt)
         + (a13_9_v9 * f_9 * Δt) + (a13_10_v9 * f_10 * Δt) + (a13_11_v9 * f_11 * Δt) + (a13_12_v9 * f_12 * Δt)
-    local f_13::Vector{Float64} = f!(S_13, t_13, output, params, i, 13)
+    local f_13::Vector{Float64} = f!(S_13, t_13, output, params, i, 7)
 
     local t_14::Float64         = t_0[1] + (c14_v9 * Δt)
     local S_14::Vector{Float64} = S_0 + (a14_1_v9 * f_1 * Δt) + (a14_6_v9 * f_6 * Δt) + (a14_7_v9 * f_7 * Δt) + (a14_8_v9 * f_8 * Δt)
         + (a14_9_v9 * f_9 * Δt) + (a14_10_v9 * f_10 * Δt) + (a14_11_v9 * f_11 * Δt) + (a14_12_v9 * f_12 * Δt) + (a14_13_v9 * f_13 * Δt)
-    local f_14::Vector{Float64} = f!(S_14, t_14, output, params, i, 14)
+    local f_14::Vector{Float64} = f!(S_14, t_14, output, params, i, 8)
 
     local t_15::Float64         = t_0[1] + (c15_v9 * Δt)
     local S_15::Vector{Float64} = S_0 + (a15_1_v9 * f_1 * Δt) + (a15_6_v9 * f_6 * Δt) + (a15_7_v9 * f_7 * Δt) + (a15_8_v9 * f_8 * Δt)
         + (a15_9_v9 * f_9 * Δt) + (a15_10_v9 * f_10 * Δt) + (a15_11_v9 * f_11 * Δt) + (a15_12_v9 * f_12 * Δt) + (a15_13_v9 * f_13 * Δt)
         + (a15_14_v9 * f_14 * Δt)
-    local f_15::Vector{Float64} = f!(S_15, t_15, output, params, i, 15)
+    local f_15::Vector{Float64} = f!(S_15, t_15, output, params, i, 9)
 
     local t_16::Float64         = t_0[1] + (c16_v9 * Δt)
     local S_16::Vector{Float64} = S_0 + (a16_1_v9 * f_1 * Δt) + (a16_6_v9 * f_6 * Δt) + (a16_7_v9 * f_7 * Δt) + (a16_8_v9 * f_8 * Δt)
@@ -750,66 +750,62 @@ function step_sol_v9!(S_0::Vector{Float64}, t_0::Vector{Float64}, output, params
     local t_17::Float64         = t_0[1] + (c17_v9 * Δt)
     local S_17::Vector{Float64} = S_0 + (a17_1_v9 * f_1 * Δt) + (a17_8_v9 * f_8 * Δt) + (a17_9_v9 * f_9 * Δt) + (a17_10_v9 * f_10 * Δt)
         + (a17_11_v9 * f_11 * Δt) + (a17_12_v9 * f_12 * Δt) + (a17_13_v9 * f_13 * Δt) + (a17_14_v9 * f_14 * Δt) + (a17_15_v9 * f_15 * Δt)
-    local f_17::Vector{Float64} = f!(S_17, t_17, output, params, i, 17)
+    local f_17::Vector{Float64} = f!(S_17, t_17, output, params, i, 10)
 
     local t_18::Float64         = t_0[1] + (c18_v9 * Δt)
     local S_18::Vector{Float64} = S_0 + (a18_1_v9 * f_1 * Δt) + (a18_8_v9 * f_8 * Δt) + (a18_9_v9 * f_9 * Δt) + (a18_10_v9 * f_10 * Δt)
         + (a18_11_v9 * f_11 * Δt) + (a18_12_v9 * f_12 * Δt) + (a18_13_v9 * f_13 * Δt) + (a18_14_v9 * f_14 * Δt) + (a18_15_v9 * f_15 * Δt)
         + (a18_17_v9 * f_17 * Δt)
-    local f_18::Vector{Float64} = f!(S_18, t_18, output, params, i, 18)
+    local f_18::Vector{Float64} = f!(S_18, t_18, output, params, i, 11)
     
     local t_19::Float64         = t_0[1] + (c19_v9 * Δt)
     local S_19::Vector{Float64} = S_0 + (a19_1_v9 * f_1 * Δt) + (a19_8_v9 * f_8 * Δt) + (a19_9_v9 * f_9 * Δt) + (a19_10_v9 * f_10 * Δt)
         + (a19_11_v9 * f_11 * Δt) + (a19_12_v9 * f_12 * Δt) + (a19_13_v9 * f_13 * Δt) + (a19_14_v9 * f_14 * Δt) + (a19_15_v9 * f_15 * Δt)
         + (a19_17_v9 * f_17 * Δt) + (a19_18_v9 * f_18 * Δt)
-    local f_19::Vector{Float64} = f!(S_19, t_19, output, params, i, 19)
+    local f_19::Vector{Float64} = f!(S_19, t_19, output, params, i, 12)
 
     local t_20::Float64         = t_0[1] + (c20_v9 * Δt)
     local S_20::Vector{Float64} = S_0 + (a20_1_v9 * f_1 * Δt) + (a20_8_v9 * f_8 * Δt) + (a20_9_v9 * f_9 * Δt) + (a20_10_v9 * f_10 * Δt)
         + (a20_11_v9 * f_11 * Δt) + (a20_12_v9 * f_12 * Δt) + (a20_13_v9 * f_13 * Δt) + (a20_14_v9 * f_14 * Δt) + (a20_15_v9 * f_15 * Δt)
         + (a20_17_v9 * f_17 * Δt) + (a20_18_v9 * f_18 * Δt) + (a20_19_v9 * f_19 * Δt)
-    local f_20::Vector{Float64} = f!(S_20, t_20, output, params, i, 20)
+    local f_20::Vector{Float64} = f!(S_20, t_20, output, params, i, 13)
     
     local t_21::Float64         = t_0[1] + (c21_v9 * Δt)
     local S_21::Vector{Float64} = S_0 + (a21_1_v9 * f_1 * Δt) + (a21_8_v9 * f_8 * Δt) + (a21_9_v9 * f_9 * Δt) + (a21_10_v9 * f_10 * Δt)
         + (a21_11_v9 * f_11 * Δt) + (a21_12_v9 * f_12 * Δt) + (a21_13_v9 * f_13 * Δt) + (a21_14_v9 * f_14 * Δt) + (a21_15_v9 * f_15 * Δt)
         + (a21_17_v9 * f_17 * Δt) + (a21_18_v9 * f_18 * Δt) + (a21_19_v9 * f_19 * Δt) + (a21_20_v9 * f_20 * Δt)
-    local f_21::Vector{Float64} = f!(S_21, t_21, output, params, i, 21)
+    local f_21::Vector{Float64} = f!(S_21, t_21, output, params, i, 14)
 
     local t_22::Float64         = t_0[1] + (c22_v9 * Δt)
     local S_22::Vector{Float64} = S_0 + (a22_1_v9 * f_1 * Δt) + (a22_8_v9 * f_8 * Δt) + (a22_9_v9 * f_9 * Δt) + (a22_10_v9 * f_10 * Δt)
         + (a22_11_v9 * f_11 * Δt) + (a22_12_v9 * f_12 * Δt) + (a22_13_v9 * f_13 * Δt) + (a22_14_v9 * f_14 * Δt) + (a22_15_v9 * f_15 * Δt)
         + (a22_17_v9 * f_17 * Δt) + (a22_18_v9 * f_18 * Δt) + (a22_19_v9 * f_19 * Δt) + (a22_20_v9 * f_20 * Δt) + (a22_21_v9 * f_21 * Δt)
-    local f_22::Vector{Float64} = f!(S_22, t_22, output, params, i, 22)
+    local f_22::Vector{Float64} = f!(S_22, t_22, output, params, i, 15)
 
     local t_23::Float64         = t_0[1] + (c23_v9 * Δt)
     local S_23::Vector{Float64} = S_0 + (a23_1_v9 * f_1 * Δt) + (a23_8_v9 * f_8 * Δt) + (a23_9_v9 * f_9 * Δt) + (a23_10_v9 * f_10 * Δt)
         + (a23_11_v9 * f_11 * Δt) + (a23_12_v9 * f_12 * Δt) + (a23_13_v9 * f_13 * Δt) + (a23_14_v9 * f_14 * Δt) + (a23_15_v9 * f_15 * Δt)
         + (a23_17_v9 * f_17 * Δt) + (a23_18_v9 * f_18 * Δt) + (a23_19_v9 * f_19 * Δt) + (a23_20_v9 * f_20 * Δt) + (a23_21_v9 * f_21 * Δt)
-    local f_23::Vector{Float64} = f!(S_23, t_23, output, params, i, 23)
+    local f_23::Vector{Float64} = f!(S_23, t_23, output, params, i, 16)
 
     local t_24::Float64         = t_0[1] + (c24_v9 * Δt)
     local S_24::Vector{Float64} = S_0 + (a24_1_v9 * f_1 * Δt) + (a24_8_v9 * f_8 * Δt) + (a24_9_v9 * f_9 * Δt) + (a24_10_v9 * f_10 * Δt)
         + (a24_11_v9 * f_11 * Δt) + (a24_12_v9 * f_12 * Δt) + (a24_13_v9 * f_13 * Δt) + (a24_14_v9 * f_14 * Δt) + (a24_15_v9 * f_15 * Δt)
         + (a24_17_v9 * f_17 * Δt) + (a24_18_v9 * f_18 * Δt) + (a24_19_v9 * f_19 * Δt) + (a24_20_v9 * f_20 * Δt) + (a24_21_v9 * f_21 * Δt)
-    local f_24::Vector{Float64} = f!(S_24, t_24, output, params, i, 24)
+    local f_24::Vector{Float64} = f!(S_24, t_24, output, params, i, 17)
 
     local t_25::Float64         = t_0[1] + (c25_v9 * Δt)
     local S_25::Vector{Float64} = S_0 + (a25_1_v9 * f_1 * Δt) + (a25_8_v9 * f_8 * Δt) + (a25_9_v9 * f_9 * Δt) + (a25_10_v9 * f_10 * Δt)
         + (a25_11_v9 * f_11 * Δt) + (a25_12_v9 * f_12 * Δt) + (a25_13_v9 * f_13 * Δt) + (a25_14_v9 * f_14 * Δt) + (a25_15_v9 * f_15 * Δt)
         + (a25_17_v9 * f_17 * Δt) + (a25_18_v9 * f_18 * Δt) + (a25_19_v9 * f_19 * Δt) + (a25_20_v9 * f_20 * Δt) + (a25_21_v9 * f_21 * Δt)
-    local f_25::Vector{Float64} = f!(S_25, t_25, output, params, i, 25)
+    local f_25::Vector{Float64} = f!(S_25, t_25, output, params, i, 18)
 
     local t_26::Float64         = t_0[1] + (c26_v9 * Δt)
     local S_26::Vector{Float64} = S_0 + (a26_1_v9 * f_1 * Δt) + (a26_8_v9 * f_8 * Δt) + (a26_9_v9 * f_9 * Δt) + (a26_10_v9 * f_10 * Δt)
         + (a26_11_v9 * f_11 * Δt) + (a26_12_v9 * f_12 * Δt) + (a26_13_v9 * f_13 * Δt) + (a26_14_v9 * f_14 * Δt) + (a26_15_v9 * f_15 * Δt)
         + (a26_17_v9 * f_17 * Δt) + (a26_18_v9 * f_18 * Δt) + (a26_19_v9 * f_19 * Δt) + (a26_20_v9 * f_20 * Δt) + (a26_21_v9 * f_21 * Δt)
-    local f_26::Vector{Float64} = f!(S_26, t_26, output, params, i, 26)
-
-    # store interpolant
-    output[1][:, 1:19, i] = [f_1 f_8 f_9 f_10 f_11 f_12 f_13 f_14 f_15 f_17 f_18 f_19 f_20 f_21 f_22 f_23 f_24 f_25 f_26] 
-
-    return ϵ
+    local f_26::Vector{Float64} = f!(S_26, t_26, output, params, i, 19)
+    return ε
 end
 
 
