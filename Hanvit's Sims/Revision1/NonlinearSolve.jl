@@ -1,6 +1,5 @@
-using BenchmarkTools
-
 #= 
+using BenchmarkTools
 function benchmark function(x::Float64, p1::Real, p2::Real)
     A = log(abs(x - p2))
     B = (1 // 3) + sign(x) * abs(x)^(1 // 3) + x^3
@@ -9,7 +8,6 @@ function benchmark function(x::Float64, p1::Real, p2::Real)
     return -(A + B + C)
 end
 =#
-
 
 
 # must call with y_a and y_b having different signs

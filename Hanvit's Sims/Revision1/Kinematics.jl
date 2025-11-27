@@ -1,12 +1,3 @@
-using LinearAlgebra
-
-
-using JLD2
-
-
-include("CoordinateTransformations.jl")
-
-
 perf_dict = load(normpath(joinpath((@__FILE__), raw"..\PerformanceData.jld2")))
 
 
@@ -246,20 +237,23 @@ function rail_function!(S::Vector{Float64}, t::Float64, output, params, i::Integ
 
 
     local Σa_ENU::Vector{Float64} = a_fictitious + DCM * (m^-1 * (F_aero′ + F_thrust′))
+    local a_constrained::Vector{Float64} = dot(Σa_ENU, rail_hat) * rail_hat
+    local a_normal::Vector{Float64} = a_constrained - Σa_ENU
     local cg::Vector{Float64} = get_cg(m)
     local C_M::Vector{Float64} = get_aerodynamic_center(Mach)
     local Inertia_inv::Matrix{Float64} = get_inertia_matrix_inv(m)
-    local Σω̇_ENU ::Vector{Float64} = Inertia_inv * (cross(cg, (AM * a_fictitious)) + cross(C_M, F_aero′) + cross(r_thrust, F_thrust′))
+    #local Σω̇_ENU ::Vector{Float64} = Inertia_inv * (cross(cg, (AM * a_fictitious)) + cross(C_M, F_aero′) + cross(r_thrust, F_thrust′))
+    local Σω̇_ENU ::Vector{Float64} = zeros(3)
     local q̇::Vector{Float64} = 0.5 * Ξ(q) * ω_ENU
     local ω_NED::Vector{Float64} = [ω_ENU[2]; ω_ENU[1]; -ω_ENU[3]]
     local q̇_NED::Vector{Float64} = 0.5 * Ξ(q_NED) * ω_NED
-    local Ṡ::Vector{Float64} = [v_ENU; Σa_ENU; q̇; Σω̇_ENU; mdot_fuel; mdot_ox; q̇_NED]
+    local Ṡ::Vector{Float64} = [v_ENU; a_constrained; q̇; Σω̇_ENU; mdot_fuel; mdot_ox; q̇_NED]
     if j != 0
         local v_NED::Vector{Float64} = [v_ENU[2]; v_ENU[1]; -v_ENU[3]]
         local Σa_NED::Vector{Float64} = [Σa_ENU[2]; Σa_ENU[1]; -Σa_ENU[3]]
         local Σω̇_NED::Vector{Float64} = [Σω̇_ENU[2]; Σω̇_ENU[1]; -Σω̇_ENU[3]]
         local ω̇̂_readout::Vector{Float64} = [-Σω̇_NED[3]; Σω̇_NED[2]; Σω̇_NED[1]]
-        local â_readout::Vector{Float64} = DCM * (m^-1 * (F_aero′ + F_thrust′))
+        local â_readout::Vector{Float64} = (m^-1 * (F_aero′ + F_thrust′ + (AM * a_normal)))
         â_readout = [-â_readout[3]; â_readout[2]; â_readout[1]]
         output[1][1:15, j, i] = Ṡ[1:15]
         output[2][1:21, j, i] = [v_NED; Σa_NED; q̇_NED; Σω̇_NED; mdot_fuel; mdot_ox; ω̇̂_readout; â_readout]
