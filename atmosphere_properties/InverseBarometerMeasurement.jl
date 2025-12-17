@@ -10,7 +10,9 @@ global α::Vector{Float32} = [
 ]
 global A_p_ini::Float32 = (BigFloat(8.31446261815324) * BigFloat(291.355857442414)) * (BigFloat(-9.80665) * BigFloat(0.0289604202420187))^-1
 global p_0_inv::Float32 = (BigFloat(1.22795595945348) * (BigFloat(8.31446261815324) / BigFloat(0.0289604202420187)) * BigFloat(291.355857442414))^-1
-    
+global A_p_ini64::Float64 = (BigFloat(8.31446261815324) * BigFloat(291.355857442414)) * (BigFloat(-9.80665) * BigFloat(0.0289604202420187))^-1
+global p_0_inv64::Float64 = (BigFloat(1.22795595945348) * (BigFloat(8.31446261815324) / BigFloat(0.0289604202420187)) * BigFloat(291.355857442414))^-1
+
 
 function poly7(x, α)
     return α[1] + α[2] * x + α[3] * x^2 + α[4] * x^3 + α[5] * x^4 + α[6] * x^5 + α[7] * x^6 + α[8] * x^7
@@ -38,7 +40,7 @@ function invert_measurement_guess(p::Float32)
     return h::Float32 = A_p_ini * log(p * p_0_inv)
 end
 function invert_measurement_guess(p::Float64)
-    return h::Float64 = A_p_ini * log(p * p_0_inv)
+    return h::Float64 = A_p_ini64 * log(p * p_0_inv64)
 end
 
 
