@@ -9,6 +9,7 @@ using JLD2
 using GLMakie
 
 
+# begin/block just to isolate local variables
 begin
 
 
@@ -224,11 +225,11 @@ end
 function lowalt_pressure(h::Float32, coeffs::Vector{Float32}, base, top)
     local p::Float32
     if h > Float32(top)
-        p = coeffs[end] * exp(coeffs[end - 1] * (h - Float32(top)))
+        p = coeffs[10] * exp(coeffs[9] * (h - Float32(top)))
     elseif h < Float32(base)
-        p = coeffs[end - 2] * exp(coeffs[end - 3] * (h - Float32(base)))
+        p = coeffs[8] * exp(coeffs[7] * (h - Float32(base)))
     else
-        p = coeffs[end - 4] * exp(low_poly(h, coeffs[1:end - 5]))
+        p = coeffs[6] * exp(low_poly(h, coeffs[1:5]))
     end
     return p
 end
@@ -257,9 +258,9 @@ p′_log::Vector{BigFloat} = p_log .- p0_log
 polyfit::Vector{BigFloat} = regress_poly7(h_samples, p′_log)
 linfit_base::BigFloat = ForwardDiff.derivative(log_atm_1d, h_base)
 linfit_top::BigFloat  = ForwardDiff.derivative(log_atm_1d, h_top)
-p_base::BigFloat = get_pressure(35.34788, -117.80683, h_base) 
-p_top::BigFloat  = get_pressure(35.34788, -117.80683, h_top)
-coeffs::Vector{BigFloat} = [
+p_base::BigFloat = p0 * exp(poly7(h_base, polyfit))
+p_top::BigFloat  = p0 * exp(poly7(h_top, polyfit))
+poly7_coeffs::Vector{BigFloat} = [
     polyfit;
     p0;
     linfit_base;
@@ -267,7 +268,7 @@ coeffs::Vector{BigFloat} = [
     linfit_top;
     p_top
 ]
-poly7_f32_coeffs = Float32.(coeffs)
+poly7_f32_coeffs = Float32.(poly7_coeffs)
 R_sq = get_R_squared(atm_data[:, 4], h_samples, poly7_f32_coeffs)
 
 
@@ -282,9 +283,9 @@ p′_log_low::Vector{BigFloat} = p_log_low .- p0_log_low
 polyfit_low::Vector{BigFloat} = low_regression(h_samples_low, p′_log_low)
 linfit_base_low::BigFloat = ForwardDiff.derivative(log_atm_1d, h_base_low)
 linfit_top_low::BigFloat  = ForwardDiff.derivative(log_atm_1d, h_top_low)
-p_base_low::BigFloat = get_pressure(35.34788, -117.80683, h_base_low) 
-p_top_low::BigFloat  = get_pressure(35.34788, -117.80683, h_top_low)
-low_coeffs::Vector{BigFloat} = [
+p_base_low::BigFloat = p0_low * exp(low_poly(h_base_low, polyfit_low))
+p_top_low::BigFloat  = p0_low * exp(low_poly(h_top_low, polyfit_low))
+lowalt_coeffs::Vector{BigFloat} = [
     polyfit_low;
     p0_low;
     linfit_base_low;
@@ -292,13 +293,16 @@ low_coeffs::Vector{BigFloat} = [
     linfit_top_low;
     p_top_low
 ]
-low_f32_coeffs = Float32.(low_coeffs)
-R_sq_2 = get_R_squared_low(atm_data_low[:, 4], h_samples_low, low_f32_coeffs, h_base_low, h_top_low)
+lowalt_f32_coeffs = Float32.(lowalt_coeffs)
+R_sq_2 = get_R_squared_low(atm_data_low[:, 4], h_samples_low, lowalt_f32_coeffs, h_base_low, h_top_low)
 
 
 save(normpath(joinpath((@__FILE__), raw"..\atm_dat.jld2")), Dict(
+    "oa_bf_fit" => poly7_coeffs,
     "oa_f32_fit" => poly7_f32_coeffs,
-    "lowalt_f32_fit" => low_f32_coeffs
+    "lowalt_bf_fit" => lowalt_coeffs,
+    "lowalt_f32_fit" => lowalt_f32_coeffs,
+    "fit_R2" => [R_sq; R_sq_2]
 ))
 
 
