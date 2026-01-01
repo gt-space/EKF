@@ -12,6 +12,7 @@ dat2 = CSV.read(normpath(joinpath((@__FILE__), raw"..\170854.csv")), DataFrame)
 n1 = 135500
 n2 = 48400
 t = [Float64.(collect(dat1[:, 1][1:n1])); Float64.(collect(dat2[:, 1][1:n2]))]
+println(t[1])
 t .-= t[1]
 GPS_valid = [collect(dat1[:, 42][1:n1]) .== true; collect(dat2[:, 42][1:n2]) .== true]
 τ_GPS = t[GPS_valid]
