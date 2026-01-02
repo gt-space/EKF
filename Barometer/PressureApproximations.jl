@@ -162,7 +162,7 @@ end
 
 
 """
-    filter_pressure(h::Float32)
+    filter_∂p∂h(h::Float32)
 
 Calculates the approximate partial derivative of the static pressure with respect to WGS 84 geodetic altitude above a location (in Pascals per metre), assuming `log(pressure)` follows a seventh-order interpolating polynomial in height defined by user-provided coefficients.
 
@@ -461,6 +461,7 @@ fig
 save(normpath(joinpath((@__FILE__), raw"..\pressure_function_test_log_plot2.png")), fig, resolution = (2000, 1000), px_per_unit = 5)
 fig
 =#
+
 
 
 
