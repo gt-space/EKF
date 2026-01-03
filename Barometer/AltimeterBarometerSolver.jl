@@ -252,7 +252,7 @@ setprecision(128)
 SpaceIndices.init()
 
 
-h_base::BigFloat = -10.0^3
+h_base::BigFloat = -1.0 * 10.0^3
 h_ceil::BigFloat = 12.0 * 10.0^3
 h::Vector{BigFloat}   = collect(range(h_base, h_ceil, length = 2^9))
 p::Vector{BigFloat}   = true_log_pressure.(h) .- true_log_pressure(0.0)
@@ -322,4 +322,5 @@ save(normpath(joinpath((@__FILE__), raw"..\AltimeterBarometerDataF32.jld2")), Di
     "β"      => Float32.(β),
     "P_0"    => Float32(P_0)
 ))
+
 
