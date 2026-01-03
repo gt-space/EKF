@@ -113,31 +113,6 @@ using JLD2
 data = load(normpath(joinpath((@__FILE__), raw"..\FilterBarometerDataF32.jld2")))
 
 
-function filter_logP(h)
-    local logP
-    # you could probably optimize this further by splitting the conditional blocks into their own unique functions
-    if h < h_base
-        logP = m_base * (h - h_base) + b_base
-    elseif h > h_ceil
-        logP = m_ceil * (h - h_ceil) + b_ceil
-    else
-        local h2 = h^2
-        local h3 = h * h2
-        local h4 = h * h3
-        local h5 = h * h4
-        local h6 = h * h5
-        local h7 = h * h6
-        logP = (α[1] * h) + (α[2] * h2) + (α[3] * h3) + (α[4] * h4) + (α[5] * h5) + (α[6] * h6) + (α[7] * h7)
-    end
-    return logP
-end
-
-
-function filter_P(h)
-    return P_0 * exp(filter_logP(h))
-end
-
-
 using GLMakie
 using ForwardDiff
 h_plot = collect(range(-1000.0, 60.0 * 10.0^3, length = 2^11))
@@ -148,5 +123,4 @@ lines!(ax, h_plot, ForwardDiff.derivative.((filter_P, ), h_plot), label = "autod
 axislegend(ax, position = :lb)
 fig
 =#
-
 
