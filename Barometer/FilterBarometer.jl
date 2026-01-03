@@ -28,7 +28,7 @@ begin
     """
         filter_logP(h::Float32)
 
-    Calculates the logarithm of the normalized ambient atmospheric pressure as a function of the geodetic altitude. 7th-order polynomial interpolant used. 
+    Calculates the logarithm of the normalized ambient atmospheric pressure as a function of the geodetic altitude over the WGS 84 reference ellipsoid. 7th-order polynomial interpolant used. 
 
     If the provided geodetic altitude exceeds the bounds in which the polynomial interpolant is valid, backup linear fits are used instead.
 
@@ -61,7 +61,7 @@ begin
     """
         filter_P(h::Float32)
 
-    Calculates the ambient atmospheric pressure (in Pascals) as a function of the geodetic altitude.
+    Calculates the ambient atmospheric pressure (in Pascals) as a function of the geodetic altitude over the WGS 84 reference ellipsoid.
 
     The logarithm of the pressure is interpolated by a 7th-order polynomial. If the provided geodetic altitude exceeds the bounds in which the polynomial interpolant is valid, backup linear fits are used instead.
 
@@ -76,6 +76,19 @@ begin
     end
 
 
+    """
+        filter_∂P∂h(h::Float32)
+
+    Calculates the partial derivative of the static pressure with respect to the geodetic altitude (in Pascals per metre) over the WGS 84 reference ellipsoid.
+
+    The logarithm of the pressure is interpolated by a 7th-order polynomial. If the provided geodetic altitude exceeds the bounds in which the polynomial interpolant is valid, backup linear fits are used instead.
+
+    ...
+    # Arguments
+    - `h::Float32`: Geodetic altitude above the WGS 84 reference ellipsoid (metres)
+
+    ...
+    """
     function filter_∂P∂h(h::Float32)
         local ∂P∂h::Float32 = exp(filter_logP(h))
         if h < h_base
@@ -135,4 +148,5 @@ lines!(ax, h_plot, ForwardDiff.derivative.((filter_P, ), h_plot), label = "autod
 axislegend(ax, position = :lb)
 fig
 =#
+
 
