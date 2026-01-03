@@ -323,4 +323,3 @@ save(normpath(joinpath((@__FILE__), raw"..\AltimeterBarometerDataF32.jld2")), Di
     "P_0"    => Float32(P_0)
 ))
 
-
