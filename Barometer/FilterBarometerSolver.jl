@@ -228,8 +228,8 @@ function logatm7(h)
     local logp
     if h < h_base
         logp = m_base * (h - h_base) + b_base
-    elseif h > h_top
-        logp = m_top * (h - h_top) + b_top
+    elseif h > h_ceil
+        logp = m_ceil * (h - h_ceil) + b_ceil
     else
         logp = poly7(h, α)
     end
@@ -239,8 +239,8 @@ function logatm7(h::Float32)
     local logp::Float32
     if h < Float32(h_base)
         logp = Float32(m_base) * (h - Float32(h_base)) + Float32(b_base)
-    elseif h > Float32(h_top)
-        logp = Float32(m_top) * (h - h_top) + Float32(b_top)
+    elseif h > Float32(h_ceil)
+        logp = Float32(m_ceil) * (h - h_ceil) + Float32(b_ceil)
     else
         logp = poly7(h, Float32.(α))
     end
@@ -253,17 +253,19 @@ SpaceIndices.init()
 
 
 h_base::BigFloat = -50.0
-h_top::BigFloat  = 50.0 * 10.0^3
-h::Vector{BigFloat}   = collect(range(h_base, h_top, length = 2^9))
+h_ceil::BigFloat  = 50.0 * 10.0^3
+h::Vector{BigFloat}   = collect(range(h_base, h_ceil, length = 2^9))
 p::Vector{BigFloat}   = true_log_pressure.(h) .- true_log_pressure(0.0)
 p′::Vector{BigFloat}  = true_log_deriv_pressure.(h)
 p′′::Vector{BigFloat} = true_log_2nd_deriv_pressure.(h)
 α::Vector{BigFloat}   = regress_poly7((h, p))
 m_base::BigFloat      = true_log_deriv_pressure(h_base)
-m_top::BigFloat       = true_log_deriv_pressure(h_top)
-b_base::BigFloat      = true_log_pressure(h_base) .- true_log_pressure(0.0)
-b_top::BigFloat       = true_log_pressure(h_top) .- true_log_pressure(0.0)
+m_ceil::BigFloat      = true_log_deriv_pressure(h_ceil)
+b_base::BigFloat      = poly7(h_base, α)
+b_ceil::BigFloat      = poly7(h_ceil, α)
 P_0::BigFloat         = pressure_nrlmsise00(0.0)
+C_base::BigFloat      = m_base * P_0
+C_ceil::BigFloat      = m_ceil * P_0
 
 
 h_plot::Vector{BigFloat}   = collect(range(-50.0, 50.0 * 10.0^3, length = 2^9))
@@ -293,11 +295,13 @@ fig
 
 save(normpath(joinpath((@__FILE__), raw"..\FilterBarometerData.jld2")), Dict(
     "h_base" => h_base,
-    "h_top"  => h_top,
+    "h_ceil" => h_ceil,
     "m_base" => m_base,
-    "m_top"  => m_top,
+    "m_ceil" => m_ceil,
     "b_base" => b_base,
-    "b_top"  => b_top,
+    "b_ceil" => b_ceil,
+    "C_base" => C_base,
+    "C_ceil" => C_ceil,
     "α"      => α,
     "P_0"    => P_0,
     "rsq"    => rsq,
@@ -308,11 +312,13 @@ save(normpath(joinpath((@__FILE__), raw"..\FilterBarometerData.jld2")), Dict(
 
 save(normpath(joinpath((@__FILE__), raw"..\FilterBarometerDataF32.jld2")), Dict(
     "h_base" => Float32(h_base),
-    "h_top"  => Float32(h_top),
+    "h_ceil" => Float32(h_ceil),
     "m_base" => Float32(m_base),
-    "m_top"  => Float32(m_top),
+    "m_ceil" => Float32(m_ceil),
     "b_base" => Float32(b_base),
-    "b_top"  => Float32(b_top),
+    "b_ceil" => Float32(b_ceil),
+    "C_base" => Float32(C_base),
+    "C_ceil" => Float32(C_ceil),
     "α"      => Float32.(α),
     "P_0"    => Float32(P_0)
 ))
@@ -353,7 +359,7 @@ ax = Axis(fig[1, 1], title = "Test Case", xlabel = "Altitude (metres)", ylabel =
 plot_samples::Vector{BigFloat} = collect(range(-10.0^3, 1.5 * 10.0^4, length = 2^8))
 actual_values::Vector{BigFloat} = get_pressure.(35.34788, -117.80683, plot_samples)
 lines!(ax, plot_samples, actual_values, label = "Raw Data")
-lines!(ax, plot_samples, lowalt_pressure.(plot_samples, (low_coeffs, ), (h_base_low, ), (h_top_low, )), label = "Fit")
+lines!(ax, plot_samples, lowalt_pressure.(plot_samples, (low_coeffs, ), (h_base_low, ), (h_ceil_low, )), label = "Fit")
 Legend(fig, ax)
 fig
 =#
