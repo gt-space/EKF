@@ -30,7 +30,7 @@ begin
     # interpolant polynomial order
     local n::Int32 = 5
     # maximum allowable numerical solver error
-    local ε::Float32 = 1.0f-6
+    local ε::Float32 = 1.0f-7
     # maximum allowable number of solver iterations
     local i_max::Int32 = 2
 
@@ -192,4 +192,5 @@ lines!(ax, h_plot, ForwardDiff.derivative.((altimeter_P, ), h_plot), label = "au
 axislegend(ax, position = :lb)
 fig
 =#
+
 
