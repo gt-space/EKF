@@ -264,6 +264,7 @@ m_ceil::BigFloat      = true_log_deriv_pressure(h_ceil)
 b_base::BigFloat      = poly5(h_base, β)
 b_ceil::BigFloat      = poly5(h_ceil, β)
 P_0::BigFloat         = pressure_nrlmsise00(0.0)
+b_0::BigFloat         = log(P_0)
 C_base::BigFloat      = m_base * P_0
 C_ceil::BigFloat      = m_ceil * P_0
 
@@ -300,10 +301,9 @@ save(normpath(joinpath((@__FILE__), raw"..\AltimeterBarometerData.jld2")), Dict(
     "m_ceil" => m_ceil,
     "b_base" => b_base,
     "b_ceil" => b_ceil,
-    "C_base" => C_base,
-    "C_ceil" => C_ceil,
     "β"      => β,
     "P_0"    => P_0,
+    "b_0"    => b_0,
     "rsq"    => rsq,
     "rms_rel_error"   => ε_lin_rms,
     "worst_rel_error" => ε_lin_max
@@ -317,9 +317,8 @@ save(normpath(joinpath((@__FILE__), raw"..\AltimeterBarometerDataF32.jld2")), Di
     "m_ceil" => Float32(m_ceil),
     "b_base" => Float32(b_base),
     "b_ceil" => Float32(b_ceil),
-    "C_base" => Float32(C_base),
-    "C_ceil" => Float32(C_ceil),
     "β"      => Float32.(β),
-    "P_0"    => Float32(P_0)
+    "P_0"    => Float32(P_0),
+    "b_0"    => Float32(b_0)
 ))
 

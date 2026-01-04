@@ -15,7 +15,7 @@ begin
     # atmospheric pressure at the surface of the reference ellipsoid
     local P_0::Float32 = 100606.414f0
     # log atmospheric pressure at the surface of the reference ellipsoid
-    local b_0::Float32 
+    local b_0::Float32 = 11.518971f0
     # fifth order polynomial interpolant coefficients
     local β::Vector{Float32} = [
         -0.00011933408;
@@ -28,11 +28,11 @@ begin
 
     # Solver constants:
     # interpolant polynomial order
-    n::Int = 5
+    n::Int32 = 5
     # maximum allowable numerical solver error
     ε::Float32 = 1.0f-6
     # maximum allowable number of solver iterations
-    i_max::Int = 16
+    i_max::Int32 = 16
 
 
     function Laguerre_solve(x_0::Float32, f̂::Float32)
@@ -85,11 +85,13 @@ begin
     """
         logP2alt(logP::Float32)
 
-    Calculate the geodetic altitude (in metres) as a function of the logarithm of the atmospheric pressure.
+    Calculate the geodetic altitude (in metres) as a function of the logarithm of the normalized atmospheric pressure.
+
+    The normalized atmospheric pressure is the pressure divided by the pressure at the surface of the WGS 84 reference ellipsoid.
 
     ...
     # Arguments
-    - `logP::Float32`: Log atmospheric pressure (Pascal)
+    - `logP::Float32`: Log normalized atmospheric pressure (Pascal)
 
     ...
     """
@@ -107,11 +109,9 @@ begin
             # in order to initialize Laguerre's method, we need an initial guess for our altitude
             # we will use a single linsolve in order to achieve this
             # the linsolve is performed via a lerp
-            # Laguerre's method is called not on logP, but on logP - b_0
-            # This is the log of the normalized pressure (pressure divided by the nominal pressure at the reference ellipsoid)
             h = Laguerre_solve(
                 (h_ceil * (b_base - logP) + h_base * (logP - b_ceil)) / (b_base - b_ceil),
-                logP - b_0
+                logP
             )
         end
         return h
@@ -130,7 +130,7 @@ begin
     ...
     """
     function pressure_altimeter_uncorrected(P::Float32)
-        return logP2alt(log(P))
+        return logP2alt(log(P) - b_0)
     end
 
 
