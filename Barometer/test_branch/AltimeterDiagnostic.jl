@@ -8,7 +8,7 @@ using GLMakie
 using BenchmarkTools
 
 
-include("AltimeterPressureTesting.jl")
+include("AltimeterPressure.jl")
 
 
 begin
@@ -133,8 +133,10 @@ h_samples::Vector{BigFloat} = collect(range(h_min, h_max, length = 2^12))
 true_pressure::Vector{BigFloat} = pressure_nrlmsise00.(h_samples)
 
 
+h_0::Vector{Float32} = just_lerp.(Float32.(true_pressure))
 h_1::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (1, ))
 h_2::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (2, ))
+h_3::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (3, ))
 h_4::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (4, ))
 h_6::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (6, ))
 h_8::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (8, ))
@@ -142,8 +144,10 @@ h_12::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure),
 h_16::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure), (16, ))
 
 
+ε_0::Vector{BigFloat} = abs.(BigFloat.(h_0) - h_samples)
 ε_1::Vector{BigFloat} = abs.(BigFloat.(h_1) - h_samples)
 ε_2::Vector{BigFloat} = abs.(BigFloat.(h_2) - h_samples)
+ε_3::Vector{BigFloat} = abs.(BigFloat.(h_3) - h_samples)
 ε_4::Vector{BigFloat} = abs.(BigFloat.(h_4) - h_samples)
 ε_6::Vector{BigFloat} = abs.(BigFloat.(h_6) - h_samples)
 ε_8::Vector{BigFloat} = abs.(BigFloat.(h_8) - h_samples)
@@ -152,8 +156,10 @@ h_16::Vector{Float32} = pressure_altimeter_uncorrected.(Float32.(true_pressure),
 
 
 mean_errors = [
+    sqrt(mean(abs2.(ε_0)));
     sqrt(mean(abs2.(ε_1)));
     sqrt(mean(abs2.(ε_2)));
+    sqrt(mean(abs2.(ε_3)));
     sqrt(mean(abs2.(ε_4)));
     sqrt(mean(abs2.(ε_6)));
     sqrt(mean(abs2.(ε_8)));
@@ -161,8 +167,10 @@ mean_errors = [
     sqrt(mean(abs2.(ε_16)))
 ]
 max_errors = [
+    maximum(ε_0);
     maximum(ε_1);
     maximum(ε_2);
+    maximum(ε_3);
     maximum(ε_4);
     maximum(ε_6);
     maximum(ε_8);
@@ -171,14 +179,18 @@ max_errors = [
 ]
 
 
-fig = Figure(size = (4000, 2000), px_per_unit = 1)
+fig = Figure(size = (4000, 2000), px_per_unit = 2)
 ax = Axis(fig[1, 1], title = "Laguerre method truncation error", xlabel = "true altitude (metres)", ylabel = "absolute error (metres)")
-lines!(ax, true_pressure, ε_1, label = "1 iteration")
-lines!(ax, true_pressure, ε_2, label = "2 iterations")
-lines!(ax, true_pressure, ε_16, label = "16 iterations")
+#=
+lines!(ax, h_samples, ε_0, label = "0 iterations")
+lines!(ax, h_samples, ε_1, label = "1 iteration")
+lines!(ax, h_samples, ε_2, label = "2 iterations")
+lines!(ax, h_samples, ε_16, label = "16 iterations")
 axislegend(ax, position = :lt)
+=#
+lines!(ax, h_samples, h_samples .* min.(ε_0 ./ h_samples, abs.(h_samples)))
 fig
-save(normpath(joinpath((@__FILE__), raw"..\altimeter_test_log_plot.png")), fig)
+#save(normpath(joinpath((@__FILE__), raw"..\altimeter_test_log_plot.png")), fig)
 #display(fig, px_per_unit = 2)
 
 

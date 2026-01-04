@@ -83,6 +83,9 @@ begin
             # update step:
             x -= a
             # if the change just made was small, have arrived at the solution
+            if abs(a) < ε
+                break
+            end
         end
         return x        
     end
@@ -108,7 +111,12 @@ begin
         return (h_ceil * (b_base - logP) + h_base * (logP - b_ceil)) / (b_base - b_ceil)
     end
 
+
+    function just_lerp(P::Float32)
+        return lerp(log(P) - b_0)
+    end
     
+
     """
         logP2alt(logP::Float32)
 
