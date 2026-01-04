@@ -42,7 +42,7 @@ begin
         local x4::Float32
         local x5::Float32
         local f::Float32
-        local f′::Float32  
+        local f′::Float32
         local f′′::Float32
         local G::Float32
         local H::Float32
@@ -87,7 +87,7 @@ begin
                 break
             end
         end
-        return x        
+        return x
     end
 
 
@@ -192,5 +192,4 @@ lines!(ax, h_plot, ForwardDiff.derivative.((altimeter_P, ), h_plot), label = "au
 axislegend(ax, position = :lb)
 fig
 =#
-
 
