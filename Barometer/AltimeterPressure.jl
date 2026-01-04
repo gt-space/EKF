@@ -28,11 +28,11 @@ begin
 
     # Solver constants:
     # interpolant polynomial order
-    n::Int32 = 5
+    local n::Int32 = 5
     # maximum allowable numerical solver error
-    ε::Float32 = 1.0f-6
+    local ε::Float32 = 1.0f-6
     # maximum allowable number of solver iterations
-    i_max::Int32 = 16
+    local i_max::Int32 = 2
 
 
     function Laguerre_solve(x_0::Float32, f̂::Float32)
@@ -82,7 +82,7 @@ begin
             a = G < 0.0 ? (n / (G - λ)) : (n / (G + λ))
             # update step:
             x -= a
-            # if the change just made was small, have arrived at the solution
+            # if the change just made was small, we have arrived at the solution
             if abs(a) < ε
                 break
             end
@@ -91,6 +91,17 @@ begin
     end
 
 
+    """
+        lerp(logP::Float32)
+
+    Estimate the geodetic altitude (in metres) by lerping between the ends of the valid interval, using the logarithm of the normalized atmospheric pressure as the lerp parameter.
+
+    ...
+    # Arguments
+    - `logP::Float32`: Log normalized atmospheric pressure (Pascal)
+
+    ...
+    """
     function lerp(logP::Float32)
         return (h_ceil * (b_base - logP) + h_base * (logP - b_ceil)) / (b_base - b_ceil)
     end
