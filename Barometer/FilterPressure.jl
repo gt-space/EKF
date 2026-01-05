@@ -59,49 +59,57 @@ begin
 
 
     """
-        filter_P(h::Float32)
+        filter_P(h::Float32, Δh::Float32)
 
     Calculates the ambient atmospheric pressure (in Pascals) as a function of the geodetic altitude over the WGS 84 reference ellipsoid.
 
     The logarithm of the pressure is interpolated by a 7th-order polynomial. If the provided geodetic altitude exceeds the bounds in which the polynomial interpolant is valid, backup linear fits are used instead.
 
+    Δh MUST be set prior to flight. Note the positive sign (which is opposite to the altimeter function).
+
     ...
     # Arguments
     - `h::Float32`: Geodetic altitude above the WGS 84 reference ellipsoid (metres)
+    - `Δh::Float32`: Height offset used for compensation (Pascal)
 
     ...
     """
-    function filter_P(h::Float32)
-        return P_0 * exp(filter_logP(h))
+    function filter_P(h::Float32, Δh::Float32)
+        h_buffer::Float32 = h + Δh
+        return P_0 * exp(filter_logP(h_buffer))
     end
 
 
     """
-        filter_∂P∂h(h::Float32)
+        filter_∂P∂h(h::Float32, Δh::Float32)
 
     Calculates the partial derivative of the static pressure with respect to the geodetic altitude (in Pascals per metre) over the WGS 84 reference ellipsoid.
 
     The logarithm of the pressure is interpolated by a 7th-order polynomial. If the provided geodetic altitude exceeds the bounds in which the polynomial interpolant is valid, backup linear fits are used instead.
 
+    Δh MUST be set prior to flight. Note the positive sign (which is opposite to the altimeter function).
+
     ...
     # Arguments
     - `h::Float32`: Geodetic altitude above the WGS 84 reference ellipsoid (metres)
+    - `Δh::Float32`: Height offset used for compensation (Pascal)
 
     ...
     """
-    function filter_∂P∂h(h::Float32)
-        local ∂P∂h::Float32 = exp(filter_logP(h))
-        if h < h_base
+    function filter_∂P∂h(h::Float32, Δh::Float32)
+        h_buffer::Float32 = h + Δh
+        local ∂P∂h::Float32 = exp(filter_logP(h_buffer))
+        if h_buffer < h_base
             ∂P∂h *= C_base 
-        elseif h > h_ceil
+        elseif h_buffer > h_ceil
             ∂P∂h *= C_ceil
         else
-            local h2::Float32 = h^2
-            local h3::Float32 = h * h2
-            local h4::Float32 = h * h3
-            local h5::Float32 = h * h4
-            local h6::Float32 = h * h5
-            ∂P∂h *= P_0 * (α[1] + (2.0 * α[2] * h) + (3.0 * α[3] * h2) + (4.0 * α[4] * h3) + (5.0 * α[5] * h4) + (6.0 * α[6] * h5) + (7.0 * α[7] * h6))
+            local h2::Float32 = h_buffer^2
+            local h3::Float32 = h_buffer * h2
+            local h4::Float32 = h_buffer * h3
+            local h5::Float32 = h_buffer * h4
+            local h6::Float32 = h_buffer * h5
+            ∂P∂h *= P_0 * (α[1] + (2.0 * α[2] * h_buffer) + (3.0 * α[3] * h2) + (4.0 * α[4] * h3) + (5.0 * α[5] * h4) + (6.0 * α[6] * h5) + (7.0 * α[7] * h6))
         end
         return ∂P∂h
     end
