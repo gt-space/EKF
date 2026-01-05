@@ -46,13 +46,13 @@ begin
         elseif h > h_ceil
             logP = m_ceil * (h - h_ceil) + b_ceil
         else
-            local h2::Float32 = h^2
-            local h3::Float32 = h * h2
-            local h4::Float32 = h * h3
-            local h5::Float32 = h * h4
-            local h6::Float32 = h * h5
-            local h7::Float32 = h * h6
-            logP = (α[1] * h) + (α[2] * h2) + (α[3] * h3) + (α[4] * h4) + (α[5] * h5) + (α[6] * h6) + (α[7] * h7)
+            logP = α[1] * h +
+                α[2] * h^2 + 
+                α[3] * h^3 + 
+                α[4] * h^4 +
+                α[5] * h^5 +
+                α[6] * h^6 +
+                α[7] * h^7
         end
         return logP
     end
@@ -104,12 +104,15 @@ begin
         elseif h_buffer > h_ceil
             ∂P∂h *= C_ceil
         else
-            local h2::Float32 = h_buffer^2
-            local h3::Float32 = h_buffer * h2
-            local h4::Float32 = h_buffer * h3
-            local h5::Float32 = h_buffer * h4
-            local h6::Float32 = h_buffer * h5
-            ∂P∂h *= P_0 * (α[1] + (2.0 * α[2] * h_buffer) + (3.0 * α[3] * h2) + (4.0 * α[4] * h3) + (5.0 * α[5] * h4) + (6.0 * α[6] * h5) + (7.0 * α[7] * h6))
+            ∂P∂h *= P_0 * (
+                α[1] +
+                2.0 * α[2] * h_buffer +
+                3.0 * α[3] * h_buffer^2 +
+                4.0 * α[4] * h_buffer^3 +
+                5.0 * α[5] * h_buffer^4 +
+                6.0 * α[6] * h_buffer^5 + 
+                7.0 * α[7] * h_buffer^6
+                )
         end
         return ∂P∂h
     end
