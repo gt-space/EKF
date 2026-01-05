@@ -35,7 +35,21 @@ begin
     local i_max::Int32 = 2
 
 
-    function Laguerre_solve(x_0::Float32, f̂::Float32)
+    """
+        Laguerre_solve(x_0::Float32, ŷ::Float32)
+
+    Nonlinear root-finding solver employing Laguerre's method.
+
+    Suppose we have value `y` described by `y = f(x)` and its nominal measured value `ŷ`, and wish to find `x` such that `f(x) = ŷ`. This is equivalent to solving the nonlinear root-finding problem `f(x) - ŷ = 0` in `x`. In cases where `f(x)` is a polynomial function, we may employ Laguerre's method.
+
+    ...
+    # Arguments
+    - `x_0::Float32`: The initial guess for the root
+    - `ŷ::Float32`: The nominal value we wish to match
+
+    ...
+    """
+    function Laguerre_solve(x_0::Float32, ŷ::Float32)
         local x::Float32 = x_0
         local x2::Float32
         local x3::Float32
@@ -49,14 +63,16 @@ begin
         local λ::Float32
         local a::Float32
         for i = 1:i_max # make sure there is an interrupt
-            # buffer for storing the powers in x
+            # buffer for storing the powers in x:
             x2 = x^2
             x3 = x * x2
             x4 = x * x3
             x5 = x * x4
             # objective function value:
-            f = (β[1] * x) + (β[2] * x2) + (β[3] * x3) + (β[4] * x4) + (β[5] * x5) - f̂
-            # this is a safety feature to avoid division by zero:
+            f = (β[1] * x) + (β[2] * x2) + (β[3] * x3) + (β[4] * x4) + (β[5] * x5) - ŷ
+            # we should exit early if |f| is less than zero
+            # this is both a safety feature to avoid division by zero, but also saves us time, because if |f| is less than zero, our guess is already the correct solution for the root
+            # therefore, we break if abs(f) < ε:
             if abs(f) < ε
                 break
             end
@@ -67,22 +83,33 @@ begin
             # G, H, and a are values used in Laguerre's method
             G = f′ / f
             H = G^2 - (f′′ / f)
-            # λ is just a buffer to store the denominator of a
+            # λ is just a buffer to store the discriminant in the denominator of a
             # factoring the n over the G^2 in H in this expression is inadvisable as this approximately doubles the floating point noise and round-off errors
-            λ = √((n - 1) * (n * H - G^2))
-            # this upcoming one liner expression for a is identical to the following conditional block:
-            # if G < 0.0
-            #    a = n / (G - λ)
-            # else
-            #    a = n / (G + λ)
-            # end
+            λ = (n - 1) * (n * H - G^2)
+            # we need to next square root this expression
+            # as long as the solver isn't called under around -2.8 kilometers geodetic altitude (which is impossible on Vespula), the discriminant will not be negative so in theory so this won't cause any issues
+            # we will nonetheless add a step to catch these errors just in case:
+            if λ < 0.0
+                break
+            end
+            # now we can safely take the square root of the discriminant:
+            λ = √(λ)
+            # the upcoming one liner expression for a uses the ternary operator ?
+            # the following condition block (which would perform exactly the same function were it not commented out) is included for clarity:
+            #=
+            if G < 0.0
+               a = n / (G - λ)
+            else
+               a = n / (G + λ)
+            end
+            =#
             # essentially, when calculating a, we want to minimize the step (because we are finding the closest root)
             # additionally, we want to maximize the denominator of a, which is G ± λ
             # in order to avoid catastrophic cancellation, we pick the sign of ± such that G ± λ is maximized, which of course also minimizes a
             a = G < 0.0 ? (n / (G - λ)) : (n / (G + λ))
             # update step:
             x -= a
-            # if the change just made was small, we have arrived at the solution
+            # if the change just made was small, we have arrived at the solution so we should exit the loop:
             if abs(a) < ε
                 break
             end
@@ -146,6 +173,8 @@ begin
         pressure_altimeter_uncorrected(P::Float32)
 
     Calculate the geodetic altitude (in metres) as a function of the atmospheric pressure.
+    
+    Use this function ONLY for initial altitude estimation on the ground in order to calibrate the offset. NEVER use it for altitude estimation in-flight.
 
     ...
     # Arguments
@@ -162,6 +191,8 @@ begin
         pressure_altimeter_corrected(P::Float32, Δh::Float32)
 
     Calculate the geodetic altitude (in metres) as a function of the atmospheric pressure.
+
+    ALWAYS use this function for altitude estimation in-flight.
 
     ...
     # Arguments
