@@ -69,7 +69,11 @@ begin
             x4 = x * x3
             x5 = x * x4
             # objective function value:
-            f = (β[1] * x) + (β[2] * x2) + (β[3] * x3) + (β[4] * x4) + (β[5] * x5) - ŷ
+            f = β[1] * x +
+                β[2] * x2 +
+                β[3] * x3 +
+                β[4] * x4 +
+                β[5] * x5 - ŷ
             # we should exit early if |f| is less than zero
             # this is both a safety feature to avoid division by zero, but also saves us time, because if |f| is less than zero, our guess is already the correct solution for the root
             # therefore, we break if abs(f) < ε:
@@ -77,9 +81,16 @@ begin
                 break
             end
             # objective function derivative:
-            f′ = (β[1]) + (2.0 * β[2] * x) + (3.0 * β[3] * x2) + (4.0 * β[4] * x3) + (5.0 * β[5] * x4)
+            f′ = β[1] +
+                2.0 * β[2] * x +
+                3.0 * β[3] * x2 +
+                4.0 * β[4] * x3 +
+                5.0 * β[5] * x4
             # objective function second derivative:
-            f′′ = (2.0 * β[2]) + (6.0 * β[3] * x) + (12.0 * β[4] * x2) + (20.0 * β[5] * x3)
+            f′′ = 2.0 * β[2] +
+                6.0 * β[3] * x +
+                12.0 * β[4] * x2 + 
+                20.0 * β[5] * x3
             # G, H, and a are values used in Laguerre's method
             G = f′ / f
             H = G^2 - (f′′ / f)
