@@ -194,6 +194,8 @@ begin
 
     ALWAYS use this function for altitude estimation in-flight.
 
+    Δh MUST be set prior to flight. Note the negative sign (which is opposite to the filter's measurement function).
+
     ...
     # Arguments
     - `P::Float32`: Atmospheric pressure (Pascal)
