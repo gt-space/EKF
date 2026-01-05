@@ -26,7 +26,7 @@ begin
 
     
     """
-        filter_logP(h::Float32)
+        filter_lognormP(h::Float32)
 
     Calculates the logarithm of the normalized ambient atmospheric pressure as a function of the geodetic altitude over the WGS 84 reference ellipsoid. 7th-order polynomial interpolant used. 
 
@@ -38,15 +38,15 @@ begin
 
     ...
     """
-    function filter_logP(h::Float32)
-        local logP::Float32
-        # you could probably optimize this further by splitting the conditional blocks into their own unique functions
+    function filter_lognormP(h::Float32)
+        local lognormP::Float32
+        # you could probably optimize this further by splitting the conditional blocks into their own unique functions to reduce look-ahead requires
         if h < h_base
-            logP = m_base * (h - h_base) + b_base
+            lognormP = m_base * (h - h_base) + b_base
         elseif h > h_ceil
-            logP = m_ceil * (h - h_ceil) + b_ceil
+            lognormP = m_ceil * (h - h_ceil) + b_ceil
         else
-            logP = α[1] * h +
+            lognormP = α[1] * h +
                 α[2] * h^2 + 
                 α[3] * h^3 + 
                 α[4] * h^4 +
@@ -54,7 +54,29 @@ begin
                 α[6] * h^6 +
                 α[7] * h^7
         end
-        return logP
+        return lognormP
+    end
+
+
+    """
+        filter_∂lognormP∂h(h::Float32)
+
+    Calculates the logarithm derivative of the normalized ambient atmospheric pressure as a function of the geodetic altitude over the WGS 84 reference ellipsoid. 7th-order polynomial interpolant used. 
+
+    ...
+    # Arguments
+    - `h::Float32`: Geodetic altitude above the WGS 84 reference ellipsoid (metres)
+
+    ...
+    """
+    function filter_∂lognormP∂h(h::Float32)
+        return α[1] +
+            2.0 * α[2] * h +
+            3.0 * α[3] * h^2 +
+            4.0 * α[4] * h^3 +
+            5.0 * α[5] * h^4 +
+            6.0 * α[6] * h^5 + 
+            7.0 * α[7] * h^6
     end
 
 
@@ -75,8 +97,11 @@ begin
     ...
     """
     function filter_P(h::Float32, Δh::Float32)
+        # apply offset
         h_buffer::Float32 = h + Δh
-        return P_0 * exp(filter_logP(h_buffer))
+        # exponentiating the log normalized pressure returns the normalized pressure
+        # we then multiply by P_0 in order to get the actual pressure
+        return P_0 * exp(filter_lognormP(h_buffer))
     end
 
 
@@ -97,22 +122,18 @@ begin
     ...
     """
     function filter_∂P∂h(h::Float32, Δh::Float32)
+        # apply offset
         h_buffer::Float32 = h + Δh
-        local ∂P∂h::Float32 = exp(filter_logP(h_buffer))
+        # first we calculate the normalized pressure
+        local ∂P∂h::Float32 = exp(filter_lognormP(h_buffer))
+        # we then multiply by this by a constant
+        # in the case that h_buffer is between h_base and h_ceil, we also need to factor in the derivative of the log normalized pressure polynomial
         if h_buffer < h_base
             ∂P∂h *= C_base 
         elseif h_buffer > h_ceil
             ∂P∂h *= C_ceil
         else
-            ∂P∂h *= P_0 * (
-                α[1] +
-                2.0 * α[2] * h_buffer +
-                3.0 * α[3] * h_buffer^2 +
-                4.0 * α[4] * h_buffer^3 +
-                5.0 * α[5] * h_buffer^4 +
-                6.0 * α[6] * h_buffer^5 + 
-                7.0 * α[7] * h_buffer^6
-                )
+            ∂P∂h *= P_0 * filter_∂lognormP∂h(h_buffer)
         end
         return ∂P∂h
     end
