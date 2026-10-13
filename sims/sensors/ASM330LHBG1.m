@@ -1,0 +1,76 @@
+
+classdef ASM330LHBG1 < handle
+
+    properties (SetAccess = private)
+        name = "ASM330LHBG1"
+        sampleRate
+        fileName = ""
+        imu
+    end
+
+    methods
+        function obj = ASM330LHBG1(sampleRate, arg2, arg3)
+
+            obj.sampleRate = sampleRate;
+
+            % Initialize the MATLAB IMU model.
+            obj.imu = imuSensor( ...
+                'accel-gyro', ...
+                'SampleRate', sampleRate);
+
+            if nargin == 3
+                % Usage: ASM330LHBG1(sampleRate, accelParams, gyroParams)
+                accelParams = arg2;
+                gyroParams = arg3;
+
+            elseif nargin == 2
+                % Usage: ASM330LHBG1(sampleRate, fileName)
+                obj.fileName = string(arg2);
+
+                loaded = load(obj.fileName);
+
+                if ~isfield(loaded, 'accel') || ...
+                   ~isfield(loaded, 'gyro')
+                    error("ASM330LHBG1:InvalidFile", ...
+                        "File must contain 'accel' and 'gyro' structs.");
+                end
+
+                accelParams = loaded.accel;
+                gyroParams = loaded.gyro;
+
+            else
+                error("ASM330LHBG1:InvalidArguments", ...
+                    "Provide sampleRate and either a filename " + ...
+                    "or accelerometer and gyroscope parameters.");
+            end
+
+            obj.configureSensor(obj.imu.Accelerometer, accelParams);
+            obj.configureSensor(obj.imu.Gyroscope, gyroParams);
+        end
+
+        function [measuredAccel, measuredAngularVelocity] = ...
+                measure(obj, trueAcceleration, trueAngularVelocity)
+
+            [measuredAccel, measuredAngularVelocity] = obj.imu( ...
+                trueAcceleration, trueAngularVelocity);
+        end
+    end
+
+    methods (Access = private)
+        function configureSensor(~, sensor, sensorParams)
+
+            fields = fieldnames(sensorParams);
+
+            for i = 1:numel(fields)
+                field = fields{i};
+
+                if ~isprop(sensor, field)
+                    error("ASM330LHBG1:InvalidParameter", ...
+                        "Unsupported sensor parameter: %s", field);
+                end
+
+                sensor.(field) = sensorParams.(field);
+            end
+        end
+    end
+end

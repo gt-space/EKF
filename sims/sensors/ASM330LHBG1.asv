@@ -1,0 +1,52 @@
+classdef ASM330LHBG1 < handle
+
+    properties (SetAccess = private)
+        name = "ASM330LHBG1"
+        sampleRate
+        fileName
+        
+        imu
+    end
+
+    methods
+        function obj = ASM330LHBG1(sampleRate, accelParams, gyroParams)
+            obj.sampleRate = sampleRate;
+
+            obj.imu = imuSensor( ...
+                'accel-gyro', ...
+                'SampleRate', params.sampleRate);
+
+            obj.configureSensor(obj.imu.Accelerometer, accelParams);
+            obj.configureSensor(obj.imu.Gyroscope, gyroParams);
+        end
+
+        function obj = ASM330LHBG1(fileName)
+            
+        end
+
+        function [measuredAccel, measuredAngularVelocity] = measure(obj, ...
+                trueAcceleration, trueAngularVelocity)
+
+            [measuredAccel, measuredAngularVelocity] = obj.imu( ...
+                trueAcceleration, trueAngularVelocity);
+        end
+    end
+
+    methods (Access = private)
+        function configureSensor(~, sensor, sensorParams)
+            % Apply only explicitly provided properties.
+            fields = fieldnames(sensorParams);
+
+            for i = 1:numel(fields)
+                field = fields{i};
+
+                if ~isprop(sensor, field)
+                    error("ASM330LHBG1:InvalidParameter", ...
+                        "Unsupported sensor parameter: %s", field);
+                end
+
+                sensor.(field) = sensorParams.(field);
+            end
+        end
+    end
+end

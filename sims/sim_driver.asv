@@ -1,0 +1,37 @@
+classdef sim_driver
+
+    properties
+        timestep
+        sensors
+        truth
+        truth_hash
+        truth_file_name
+        filter
+        output_dir
+    end
+
+    methods
+        function obj = sim_driver(timestep, truth_mat_filename, filter, output_dir)
+            %SIM_DRIVER Construct an instance of this class
+            %   Detailed explanation goes here
+
+            obj.timestep = timestep;
+            obj.truth_file_name = truth_mat_filename;
+            obj.truth = load(truth_mat_filename);
+            obj.truth_hash = hash_mat_file(obj.truth);
+            obj.filter = filter;
+            obj.output_dir = output_dir;
+
+            obj.sensors = containers.Map( ...
+                'KeyType', 'char', ...
+                'ValueType', 'any');        
+        end
+
+        function addSensor(obj, sensorType, sensor)
+            key = char(string(sensorType));
+            obj.sensors(key) = sensor;
+        end
+
+        
+    end
+end
