@@ -1,22 +1,24 @@
-
 classdef ASM330LHBG1 < handle
 
     properties (SetAccess = private)
         name = "ASM330LHBG1"
-        sampleRate
-        fileName = ""
+        sample_rate      % Hz
+        num_measurements % number of measurements
+        sensor_catgeory
+        file_name = ""
         imu
     end
 
     methods
-        function obj = ASM330LHBG1(sampleRate, arg2, arg3)
+        function obj = ASM330LHBG1(sample_rate, arg2, arg3)
 
-            obj.sampleRate = sampleRate;
+            obj.sample_rate = sample_rate;
+            obj.num_measurements = 6;
 
             % Initialize the MATLAB IMU model.
             obj.imu = imuSensor( ...
                 'accel-gyro', ...
-                'SampleRate', sampleRate);
+                'SampleRate', sample_rate);
 
             if nargin == 3
                 % Usage: ASM330LHBG1(sampleRate, accelParams, gyroParams)
@@ -25,9 +27,9 @@ classdef ASM330LHBG1 < handle
 
             elseif nargin == 2
                 % Usage: ASM330LHBG1(sampleRate, fileName)
-                obj.fileName = string(arg2);
+                obj.file_name = string(arg2);
 
-                loaded = load(obj.fileName);
+                loaded = load(obj.file_name);
 
                 if ~isfield(loaded, 'accel') || ...
                    ~isfield(loaded, 'gyro')
@@ -46,13 +48,15 @@ classdef ASM330LHBG1 < handle
 
             obj.configureSensor(obj.imu.Accelerometer, accelParams);
             obj.configureSensor(obj.imu.Gyroscope, gyroParams);
+            obj.sensor_catgeory = measurement_type.IMU;
         end
 
-        function [measuredAccel, measuredAngularVelocity] = ...
-                measure(obj, trueAcceleration, trueAngularVelocity)
+        function measurement = measure(obj, trueAcceleration, trueAngularVelocity)
 
             [measuredAccel, measuredAngularVelocity] = obj.imu( ...
                 trueAcceleration, trueAngularVelocity);
+
+           measurement = [measuredAccel; measuredAngularVelocity];
         end
     end
 
