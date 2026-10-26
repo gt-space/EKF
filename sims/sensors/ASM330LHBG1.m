@@ -4,7 +4,7 @@ classdef ASM330LHBG1 < handle
         name = "ASM330LHBG1"
         sample_rate      % Hz
         num_measurements % number of measurements
-        sensor_catgeory
+        sensor_category
         file_name = ""
         imu
     end
@@ -38,7 +38,7 @@ classdef ASM330LHBG1 < handle
                 end
 
                 accelParams = loaded.accel;
-                gyroParams = loaded.gyro;
+                gyroParams = loaded.gyro;   
 
             else
                 error("ASM330LHBG1:InvalidArguments", ...
@@ -46,22 +46,20 @@ classdef ASM330LHBG1 < handle
                     "or accelerometer and gyroscope parameters.");
             end
 
-            obj.configureSensor(obj.imu.Accelerometer, accelParams);
-            obj.configureSensor(obj.imu.Gyroscope, gyroParams);
-            obj.sensor_catgeory = measurement_type.IMU;
+            obj.imu.Accelerometer = obj.configureSensor(obj.imu.Accelerometer, accelParams);
+            obj.imu.Gyroscope     = obj.configureSensor(obj.imu.Gyroscope, gyroParams);
+            obj.sensor_category = measurement_type.IMU;
         end
 
         function measurement = measure(obj, trueAcceleration, trueAngularVelocity)
 
-            [measuredAccel, measuredAngularVelocity] = obj.imu( ...
-                trueAcceleration, trueAngularVelocity);
-
-           measurement = [measuredAccel; measuredAngularVelocity];
+            [measuredAccel, measuredAngularVelocity] = obj.imu(trueAcceleration(:).', trueAngularVelocity(:).');
+            measurement = [measuredAccel, measuredAngularVelocity].';
         end
     end
 
     methods (Access = private)
-        function configureSensor(~, sensor, sensorParams)
+        function sensor = configureSensor(~, sensor, sensorParams)
 
             fields = fieldnames(sensorParams);
 
